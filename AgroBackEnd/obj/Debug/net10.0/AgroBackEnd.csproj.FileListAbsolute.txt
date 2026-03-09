@@ -38,3 +38,6 @@ C:\Users\ffetiyev\Desktop\API\AgroBackEnd\AgroBackEnd\obj\Debug\net10.0\refint\A
 C:\Users\ffetiyev\Desktop\API\AgroBackEnd\AgroBackEnd\obj\Debug\net10.0\AgroBackEnd.pdb
 C:\Users\ffetiyev\Desktop\API\AgroBackEnd\AgroBackEnd\obj\Debug\net10.0\AgroBackEnd.genruntimeconfig.cache
 C:\Users\ffetiyev\Desktop\API\AgroBackEnd\AgroBackEnd\obj\Debug\net10.0\ref\AgroBackEnd.dll
+C:\Users\nicat\Projects\agroadvisor-group1\AgroBackEnd\obj\Debug\net10.0\AgroBackEnd.dll
+C:\Users\nicat\Projects\agroadvisor-group1\AgroBackEnd\obj\Debug\net10.0\refint\AgroBackEnd.dll
+C:\Users\nicat\Projects\agroadvisor-group1\AgroBackEnd\obj\Debug\net10.0\AgroBackEnd.pdb
