@@ -1,11 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using Service.DTOs.ImageAnalysisDTOs;
 
-namespace Service.Services.Interfaces
+namespace Service.Services.Interfaces;
+
+public interface IImageAnalysisService
 {
-    internal class IImageAnalysisService
-    {
-
-    }
+    Task<ImageAnalysisResultDto> AnalyzeAsync(ImageAnalysisRequestDto request, CancellationToken cancellationToken = default);
 }
