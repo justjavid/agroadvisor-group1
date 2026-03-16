@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+using Repository.Data;
 using Scalar.AspNetCore;
 using Service.Services;
 using Service.Services.Interfaces;
@@ -13,8 +15,9 @@ builder.Services.AddOpenApi();
 builder.Services.AddHttpClient("openai");
 
 builder.Services.AddScoped<IChatService, ChatService>();
-builder.Services.AddScoped<IYoloService, YoloService>();
-builder.Services.AddScoped<IImageAnalysisService, ImageAnalysisService>();
+
+builder.Services.AddDbContext<ChatBotDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 var app = builder.Build();
 
