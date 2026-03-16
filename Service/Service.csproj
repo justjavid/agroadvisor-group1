@@ -11,7 +11,18 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="DTOs\FertilizerCalculatorDTOs\" />
+    <Folder Include="DTOs\FertilizerCalculatorDTOs\Requests\" />
+    <Folder Include="DTOs\FertilizerCalculatorDTOs\Responses\" />
     <Folder Include="DTOs\ImageAnalysisDTOs\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.1" />
   </ItemGroup>
 
 </Project>
