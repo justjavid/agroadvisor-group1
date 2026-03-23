@@ -8,7 +8,6 @@
 
   <ItemGroup>
     <Folder Include="Models\ImageAnalysis\" />
-    <Folder Include="Models\" />
   </ItemGroup>
 
 </Project>
