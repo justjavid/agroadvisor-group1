@@ -1,3 +1,6 @@
+using Service.Services;
+using Service.Services.Interfaces;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -5,7 +8,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
-
+// Weather
+builder.Services.AddHttpClient<WeatherService>();
+builder.Services.AddScoped<IWeatherService, WeatherService>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
