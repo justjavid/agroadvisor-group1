@@ -4,3 +4,16 @@ GET {{AgroBackEnd_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
+
+POST {{AgroBackEnd_HostAddress}}/api/fertilizers
+Content-Type: application/json
+
+{
+  "name": "Urea 46-0-0",
+  "nPct": 46,
+  "pPct": 0,
+  "kPct": 0,
+  "costPerKg": 1.25
+}
+
+###
