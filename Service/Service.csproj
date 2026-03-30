@@ -7,11 +7,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Repository\Repository.csproj" />
+    <None Include="DTOs\ImageAnalysisDTOs\AnalyzeImageResponseDto.cs" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="DTOs\ImageAnalysisDTOs\" />
+    <PackageReference Include="Microsoft.AspNetCore.Http.Features" Version="5.0.17" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Repository\Repository.csproj" />
   </ItemGroup>
 
 </Project>
