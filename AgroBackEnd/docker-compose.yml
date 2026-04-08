@@ -10,7 +10,7 @@ services:
     ports:
       - "5454:5432"
     volumes:
-      - agro_advisor_data:/var/lib/postgresql/data
+      - agro_advisor_data:/var/lib/postgresql
 
 volumes:
   agro_advisor_data:
