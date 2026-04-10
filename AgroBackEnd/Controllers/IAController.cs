@@ -11,52 +11,43 @@ namespace AgroBackEnd.Controllers
     public class IAController : ControllerBase
     {
         private readonly IImageAnalysisService _imageService;
+        private readonly IImageSearchService _imageSearchService;
 
-        public IAController(IImageAnalysisService imageService)
+        public IAController(IImageAnalysisService imageService, IImageSearchService imageSearchService)
         {
             _imageService = imageService;
+            _imageSearchService = imageSearchService;
         }
 
         [HttpPost]
-        [Consumes("multipart/form-data")]
-
         public async Task<IActionResult> Analyze([FromForm] AnalyzeFormRequestDto request)
         {
-            var file = request?.File;
-            var prompt = request?.Prompt;
-
-            if (file == null || file.Length == 0)
+            if (request?.File == null || request.File.Length == 0)
                 return BadRequest("File is required");
 
             using var ms = new MemoryStream();
-            await file.CopyToAsync(ms);
-            var fileBytes = ms.ToArray();
-            var base64 = Convert.ToBase64String(fileBytes);
+            await request.File.CopyToAsync(ms);
 
             var dto = new AnalyzeImageRequestDto
             {
-                ImageBase64 = base64,
-                Prompt = prompt
+                ImageBase64 = Convert.ToBase64String(ms.ToArray()),
+                Prompt = request.Prompt
             };
 
-            AnalyzeImageResponseDto result;
-            try
-            {
-                result = await _imageService.AnalyzeImageAsync(dto);
 
-                // Only return AI-provided image. If AI didn't return an image, leave ImageBase64 null.
-                if (result == null || string.IsNullOrWhiteSpace(result.ImageBase64))
+                var result = await _imageService.AnalyzeImageAsync(dto);
+
+                // 🔥 PEXELS INTEGRATION
+                if (!string.IsNullOrWhiteSpace(result.DiseaseName))
                 {
-                    if (result != null)
-                        result.ImageBase64 = null;
-                }
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { error = ex.Message });
-            }
+                    var query = $"{result.PlantName} {result.DiseaseName}";
+                    var images = await _imageSearchService.SearchPhotosAsync(query);
 
-            return Ok(result);
+                    result.ImageUrls = images;
+                }
+
+                return Ok(result);
+
         }
 
 

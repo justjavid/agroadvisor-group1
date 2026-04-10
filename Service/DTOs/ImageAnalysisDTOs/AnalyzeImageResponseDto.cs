@@ -4,7 +4,8 @@
     {
         public string PlantName { get; set; }
         public string DiseaseName { get; set; }
+        public string Information { get; set; }
         public float Confidence { get; set; }
-        public string? ImageBase64 { get; set; }
+        public List<string> ImageUrls { get; set; } = new();
     }
 }

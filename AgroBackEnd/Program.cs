@@ -4,7 +4,7 @@ using Repository.Data;
 using Repository.Repositories;
 using Repository.Repositories.Interfaces;
 using Service.Services.Interfaces;
-
+using Service.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,6 +29,7 @@ builder.Services.AddDbContext<ImageAnalysisDbContext>(options =>
 // Repositories and application services
 builder.Services.AddScoped<IImageAnalysisRepository, ImageAnalysisRepository>();
 builder.Services.AddHttpClient<IImageAnalysisService, ImageAnalysisService>();
+builder.Services.AddHttpClient<IImageSearchService, ImageSearchService>();
 
 
 var app = builder.Build();

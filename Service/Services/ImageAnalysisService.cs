@@ -1,4 +1,5 @@
 ﻿using Domain.Models.ImageAnalysis;
+using Microsoft.Extensions.Configuration;
 using Repository.Repositories.Interfaces;
 using Service.DTOs.ImageAnalysisDTOs;
 using Service.Services.Interfaces;
@@ -8,45 +9,50 @@ using System.Text.Json;
 public class ImageAnalysisService : IImageAnalysisService
 {
     private readonly HttpClient _httpClient;
-    private readonly string _apiKey = "AIzaSyAh3yC6jckq7wy2KjauH875kOaWwIgaXDI";
+    private readonly string _apiKey;
 
-    public ImageAnalysisService(HttpClient httpClient)
+    public ImageAnalysisService(HttpClient httpClient, IConfiguration configuration)
     {
         _httpClient = httpClient;
+        _apiKey = configuration["GeminiSettings:ApiKey"] ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(_apiKey))
+            throw new InvalidOperationException("Gemini API key is not configured. Set 'GeminiSettings:ApiKey' in configuration.");
+
     }
 
 
     public async Task<AnalyzeImageResponseDto> AnalyzeImageAsync(AnalyzeImageRequestDto dto)
     {
-        // Gemini-yə düzgün JSON qaytarması üçün prompt
         var fullPrompt = dto.Prompt + @"
-               Return ONLY JSON in this format:
-               {
-                 ""plantName"": """",
-                 ""diseaseName"": """",
-                 ""confidence"": 0.0
-               }";
+    Return ONLY JSON in this format:
+    {
+      ""plantName"": """",
+      ""information"": """",
+      ""diseaseName"": """",
+      ""confidence"": 0.0
+    }";
 
         var requestBody = new
         {
             contents = new[]
             {
+            new
+            {
+                parts = new object[]
+                {
+                    new { text = fullPrompt },
                     new
                     {
-                        parts = new object[]
+                        inline_data = new
                         {
-                            new { text = fullPrompt },
-                            new
-                            {
-                                inline_data = new
-                                {
-                                    mime_type = "image/jpeg",
-                                    data = dto.ImageBase64
-                                }
-                            }
+                            mime_type = "image/jpeg",
+                            data = dto.ImageBase64
                         }
                     }
                 }
+            }
+        }
         };
 
         var json = JsonSerializer.Serialize(requestBody);
@@ -56,47 +62,76 @@ public class ImageAnalysisService : IImageAnalysisService
 
         request.Content = new StringContent(json, Encoding.UTF8, "application/json");
 
-        var response = await _httpClient.SendAsync(request);
-
-        if (!response.IsSuccessStatusCode)
+        // Retry transient errors (503, 429, 5xx) using simple exponential backoff
+        const int maxAttempts = 3;
+        int delayMs = 1000;
+        HttpResponseMessage response = null!;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            var error = await response.Content.ReadAsStringAsync();
-            throw new Exception(error);
+            response = await _httpClient.SendAsync(request);
+
+            if (response.IsSuccessStatusCode)
+                break;
+
+            var statusCode = (int)response.StatusCode;
+            // Treat 429/503 and other 5xx as transient
+            if ((statusCode == 429 || statusCode == 503 || statusCode >= 500) && attempt < maxAttempts)
+            {
+                await Task.Delay(delayMs);
+                delayMs *= 2;
+                continue;
+            }
+
+            // Non-transient or last attempt -> bubble up response body as error
+            var errBody = await response.Content.ReadAsStringAsync();
+            throw new Exception(errBody);
+        }
+
+        if (response == null || !response.IsSuccessStatusCode)
+        {
+            var errBody = response == null ? "No response from AI service" : await response.Content.ReadAsStringAsync();
+            throw new Exception($"AI service unavailable after {maxAttempts} attempts. Last error: {errBody}");
         }
 
         var responseContent = await response.Content.ReadAsStringAsync();
 
         using var doc = JsonDocument.Parse(responseContent);
 
-        if (!doc.RootElement.TryGetProperty("candidates", out var candidates))
-            throw new Exception("No candidates in response");
+        string? text = null;
+        if (doc.RootElement.TryGetProperty("candidates", out var candidates) &&
+            candidates.ValueKind == JsonValueKind.Array &&
+            candidates.GetArrayLength() > 0)
+        {
+            var first = candidates[0];
+            if (first.TryGetProperty("content", out var content) &&
+                content.TryGetProperty("parts", out var parts) &&
+                parts.ValueKind == JsonValueKind.Array && parts.GetArrayLength() > 0)
+            {
+                var part = parts[0];
+                if (part.TryGetProperty("text", out var textProp) && textProp.ValueKind == JsonValueKind.String)
+                {
+                    text = textProp.GetString();
+                }
+            }
+        }
 
-        var text = candidates[0]
-            .GetProperty("content")
-            .GetProperty("parts")[0]
-            .GetProperty("text")
-            .GetString();
+        if (string.IsNullOrWhiteSpace(text))
+            throw new Exception("AI returned empty text");
 
-        //  CLEAN JSON
+        // clean ```json``` block
         if (text.StartsWith("```"))
         {
             var start = text.IndexOf('{');
             var end = text.LastIndexOf('}');
-            text = text.Substring(start, end - start + 1);
+            if (start >= 0 && end > start)
+                text = text.Substring(start, end - start + 1);
         }
 
-        Console.WriteLine(text);
-
-        //  DESERIALIZE SAFE
         var result = JsonSerializer.Deserialize<AnalyzeImageResponseDto>(text,
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
         if (result == null)
             throw new Exception("Failed to parse Gemini response");
-
-        // Normalize empty imageBase64 to null so caller can easily check availability
-        if (string.IsNullOrWhiteSpace(result.ImageBase64))
-            result.ImageBase64 = null;
 
         return result;
     }
