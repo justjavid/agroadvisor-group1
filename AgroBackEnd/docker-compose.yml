@@ -1,16 +1,17 @@
 services:
   postgres:
-    image: postgres:latest
+    image: postgres:17
     container_name: agro_advisor_db
     restart: always
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: agro_advisor
+      PGDATA: /var/lib/postgresql/data/pgdata
     ports:
       - "5454:5432"
     volumes:
-      - agro_advisor_data:/var/lib/postgresql
+      - agro_advisor_data:/var/lib/postgresql/data
 
 volumes:
   agro_advisor_data:

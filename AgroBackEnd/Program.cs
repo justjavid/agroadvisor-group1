@@ -1,28 +1,41 @@
+using Microsoft.EntityFrameworkCore;
+using Repository.Data;
 using Service.Services;
 using Service.Services.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-
+// Controllers
 builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+
+// OpenAPI
 builder.Services.AddOpenApi();
-builder.Services.AddHttpClient();
+
+// ✅ HttpClient (named etmək daha yaxşıdır)
+builder.Services.AddHttpClient("gemini");
+
+// Services
 builder.Services.AddScoped<IChatService, ChatService>();
+
+// ✅ DbContext
+builder.Services.AddDbContext<ChatBotDbContext>(options =>
+    options.UseNpgsql(
+        builder.Configuration.GetConnectionString("DefaultConnection")
+    ));
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Dev tools
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
+// Middleware
 app.UseHttpsRedirection();
-
 app.UseAuthorization();
 
+// Endpoints
 app.MapControllers();
 
 app.Run();

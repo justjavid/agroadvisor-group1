@@ -50,3 +50,7 @@ project.assets.json
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# App settings (sensitive data)
+appsettings.json
+appsettings.Development.json
