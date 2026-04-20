@@ -50,3 +50,6 @@ project.assets.json
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Local env secrets
+.env

@@ -9,10 +9,12 @@ namespace Service.Services;
 public class CalculatorService : ICalculatorService
 {
     private readonly FertilizerCalculatorDbContext _db;
+    private readonly IFertilizerAiInsightService _fertilizerAiInsightService;
 
-    public CalculatorService(FertilizerCalculatorDbContext db)
+    public CalculatorService(FertilizerCalculatorDbContext db, IFertilizerAiInsightService fertilizerAiInsightService)
     {
         _db = db;
+        _fertilizerAiInsightService = fertilizerAiInsightService;
     }
 
     public async Task<CalculatorResultResponse> CalculateAsync(CalculatorInputRequest request, CancellationToken cancellationToken = default)
@@ -40,7 +42,7 @@ public class CalculatorService : ICalculatorService
         var totalPRequired = cropRequirements.P * soilMultiplier.PMultiplier * request.FieldSizeHectares;
         var totalKRequired = cropRequirements.K * soilMultiplier.KMultiplier * request.FieldSizeHectares;
 
-        return new CalculatorResultResponse
+        var result = new CalculatorResultResponse
         {
             CropType = cropRequirements.CropType,
             GrowthStage = cropRequirements.GrowthStage,
@@ -56,5 +58,11 @@ public class CalculatorService : ICalculatorService
             TotalPRequired = totalPRequired,
             TotalKRequired = totalKRequired
         };
+
+        var aiInsight = await _fertilizerAiInsightService.GenerateInsightsAsync(result, cancellationToken);
+        result.AiSummary = aiInsight.Summary;
+        result.AiSuggestions = aiInsight.Suggestions;
+
+        return result;
     }
 }

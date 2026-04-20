@@ -18,4 +18,7 @@ public class CalculatorResultResponse
     public double TotalNRequired { get; set; }
     public double TotalPRequired { get; set; }
     public double TotalKRequired { get; set; }
+
+    public string? AiSummary { get; set; }
+    public List<string> AiSuggestions { get; set; } = [];
 }
