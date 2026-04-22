@@ -1,5 +1,5 @@
 ﻿using Domain.Models.FertilizerCalculator;
-using Repository.Data.FertilizerCalculator;
+using Repository.Data;
 using Service.DTOs.FertilizerCalculatorDTOs.Requests;
 using Service.DTOs.FertilizerCalculatorDTOs.Responses;
 using Service.Services.FertilizerCalculator.Interfaces;
@@ -8,9 +8,9 @@ namespace Service.Services.FertilizerCalculator;
 
 public class SoilMultiplierService : ISoilMultiplierService
 {
-    private readonly FertilizerCalculatorDbContext _db;
+    private readonly AppDbContext _db;
 
-    public SoilMultiplierService(FertilizerCalculatorDbContext db)
+    public SoilMultiplierService(AppDbContext db)
     {
         _db = db;
     }

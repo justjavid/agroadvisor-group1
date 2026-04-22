@@ -1,5 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Repository.Data.FertilizerCalculator;
+using Repository.Data;
 using Service.DTOs.FertilizerCalculatorDTOs.Requests;
 using Service.DTOs.FertilizerCalculatorDTOs.Responses;
 using Service.Services.FertilizerCalculator.Interfaces;
@@ -8,11 +8,13 @@ namespace Service.Services.FertilizerCalculator;
 
 public class CalculatorService : ICalculatorService
 {
-    private readonly FertilizerCalculatorDbContext _db;
+    private readonly AppDbContext _db;
+    private readonly IFertilizerAiInsightService _aiInsightService;
 
-    public CalculatorService(FertilizerCalculatorDbContext db)
+    public CalculatorService(AppDbContext db, IFertilizerAiInsightService aiInsightService)
     {
         _db = db;
+        _aiInsightService = aiInsightService;
     }
 
     public async Task<CalculatorResultResponse> CalculateAsync(CalculatorInputRequest request, CancellationToken cancellationToken = default)
@@ -40,7 +42,7 @@ public class CalculatorService : ICalculatorService
         var totalPRequired = cropRequirements.P * soilMultiplier.PMultiplier * request.FieldSizeHectares;
         var totalKRequired = cropRequirements.K * soilMultiplier.KMultiplier * request.FieldSizeHectares;
 
-        return new CalculatorResultResponse
+        var result = new CalculatorResultResponse
         {
             CropType = cropRequirements.CropType,
             GrowthStage = cropRequirements.GrowthStage,
@@ -56,5 +58,11 @@ public class CalculatorService : ICalculatorService
             TotalPRequired = totalPRequired,
             TotalKRequired = totalKRequired
         };
+
+        var aiInsight = await _aiInsightService.GenerateInsightsAsync(result, cancellationToken);
+        result.AiSummary = aiInsight.Summary;
+        result.AiSuggestions = aiInsight.Suggestions;
+
+        return result;
     }
 }

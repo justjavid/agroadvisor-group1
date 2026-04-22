@@ -4,6 +4,8 @@
 [Oo]ut/
 [Ll]og/
 [Ll]ogs/
+publish/
+deploy.zip
 
 # Visual Studio / Rider / VS Code
 .vs/
@@ -40,6 +42,9 @@ wwwroot/dist/
 *.sqlite3
 
 # Environment / secrets
+.env
+.env.*
+!.env.example
 appsettings.*.local.json
 secrets.json
 *.pfx

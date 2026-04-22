@@ -6,8 +6,8 @@ namespace Repository.Repositories
 {
     public class ImageAnalysisRepository : IImageAnalysisRepository
     {
-        private readonly ImageAnalysisDbContext _context;
-        public ImageAnalysisRepository(ImageAnalysisDbContext context)
+        private readonly AppDbContext _context;
+        public ImageAnalysisRepository(AppDbContext context)
         {
             _context = context;
         }
