@@ -6,6 +6,11 @@ namespace Service.Services.Interfaces;
 
 public interface IChatService
 {
-    Task<ChatResponseDto> AskAsync(ChatRequestDto request, CancellationToken cancellationToken = default);
-}
+    Task<ChatResponseDto> AskAsync(ChatRequestDto request, CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<ChatMessageDto>> GetSessionMessagesAsync(Guid sessionId);
+
+    Task<IReadOnlyList<Guid>> GetUserSessionsAsync(string userId);
+
+    Task DeleteSessionAsync(Guid sessionId, string userId);
+}
