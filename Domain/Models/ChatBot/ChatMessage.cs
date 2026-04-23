@@ -7,7 +7,7 @@ public sealed class ChatMessage
     public Guid SessionId { get; set; }
     public ChatSession? Session { get; set; }
 
-    public required string Role { get; set; } // "user" | "assistant" | "system"
+    public ChatRole Role { get; set; }
 
     public required string Content { get; set; }
 
