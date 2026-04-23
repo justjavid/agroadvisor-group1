@@ -35,10 +35,9 @@ namespace Repository.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("Role")
-                        .IsRequired()
+                    b.Property<int>("Role")
                         .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
+                        .HasColumnType("integer");
 
                     b.Property<Guid>("SessionId")
                         .HasColumnType("uuid");
@@ -57,6 +56,15 @@ namespace Repository.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Title")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("UserId")
