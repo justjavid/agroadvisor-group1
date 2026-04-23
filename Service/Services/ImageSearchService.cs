@@ -2,8 +2,10 @@
 using Service.Services.Interfaces;
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Text;
 using System.Text.Json;
+using System.Linq;
 
 namespace Service.Services
 {
@@ -15,37 +17,48 @@ namespace Service.Services
         public ImageSearchService(HttpClient httpClient, IConfiguration config)
         {
             _httpClient = httpClient;
-            _apiKey = config["Pexels:ApiKey"];
+
+            _apiKey = config["ImageSearch:ApiKey"]
+                ?? throw new InvalidOperationException("SerpAPI key missing");
         }
 
-        public async Task<List<string>> SearchPhotosAsync(string query)
+        public async Task<List<string>> SearchImagesAsync(string query)
         {
-            var url = $"https://api.pexels.com/v1/search?query={query}&per_page=5";
+            var url =
+                $"https://serpapi.com/search.json?q={WebUtility.UrlEncode(query)}" +
+                $"&engine=google_images&api_key={_apiKey}";
 
-            var request = new HttpRequestMessage(HttpMethod.Get, url);
-            request.Headers.Add("Authorization", _apiKey);
-
-            var response = await _httpClient.SendAsync(request);
+            var response = await _httpClient.GetAsync(url);
+            var json = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
-                throw new Exception(await response.Content.ReadAsStringAsync());
-
-            var json = await response.Content.ReadAsStringAsync();
+            {
+                return new List<string>(); 
+            }
 
             using var doc = JsonDocument.Parse(json);
 
-            var photos = doc.RootElement.GetProperty("photos");
-
             var images = new List<string>();
 
-            foreach (var photo in photos.EnumerateArray())
+            if (doc.RootElement.TryGetProperty("images_results", out var results))
             {
-                var imageUrl = photo.GetProperty("src").GetProperty("medium").GetString();
-                images.Add(imageUrl);
+                foreach (var item in results.EnumerateArray())
+                {
+                    if (item.TryGetProperty("original", out var img))
+                    {
+                        var urlImg = img.GetString();
+                        if (!string.IsNullOrWhiteSpace(urlImg))
+                            images.Add(urlImg);
+                    }
+                }
             }
+            if (images.Count == 0)
+                return new List<string>
+            {
+                "https://via.placeholder.com/512?text=No+Image+Found"
+            };
 
-            return images;
+            return images.Take(3).ToList();
         }
-    
     }
 }

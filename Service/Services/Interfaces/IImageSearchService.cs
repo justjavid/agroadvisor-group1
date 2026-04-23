@@ -2,6 +2,6 @@
 {
     public interface IImageSearchService
     {
-        Task<List<string>> SearchPhotosAsync(string query);
+        Task<List<string>> SearchImagesAsync(string query);
     }
 }

@@ -25,7 +25,7 @@ public class ImageAnalysisService : IImageAnalysisService
     public async Task<AnalyzeImageResponseDto> AnalyzeImageAsync(AnalyzeImageRequestDto dto)
     {
         var fullPrompt = dto.Prompt + @"
-    Return ONLY JSON in this format:
+    Return ONLY JSON in this format and add promt answer to information:
     {
       ""plantName"": """",
       ""information"": """",
@@ -68,13 +68,18 @@ public class ImageAnalysisService : IImageAnalysisService
         HttpResponseMessage response = null!;
         for (int attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            response = await _httpClient.SendAsync(request);
+            var httpRequest = new HttpRequestMessage(HttpMethod.Post,
+                $"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={_apiKey}");
+
+            httpRequest.Content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            response = await _httpClient.SendAsync(httpRequest);
 
             if (response.IsSuccessStatusCode)
                 break;
 
             var statusCode = (int)response.StatusCode;
-            // Treat 429/503 and other 5xx as transient
+
             if ((statusCode == 429 || statusCode == 503 || statusCode >= 500) && attempt < maxAttempts)
             {
                 await Task.Delay(delayMs);
@@ -82,7 +87,6 @@ public class ImageAnalysisService : IImageAnalysisService
                 continue;
             }
 
-            // Non-transient or last attempt -> bubble up response body as error
             var errBody = await response.Content.ReadAsStringAsync();
             throw new Exception(errBody);
         }
@@ -123,8 +127,11 @@ public class ImageAnalysisService : IImageAnalysisService
         {
             var start = text.IndexOf('{');
             var end = text.LastIndexOf('}');
-            if (start >= 0 && end > start)
-                text = text.Substring(start, end - start + 1);
+
+            if (start < 0 || end < 0 || end <= start)
+                throw new Exception("Invalid Gemini JSON format");
+
+            text = text.Substring(start, end - start + 1);
         }
 
         var result = JsonSerializer.Deserialize<AnalyzeImageResponseDto>(text,
