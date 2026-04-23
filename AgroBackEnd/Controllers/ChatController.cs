@@ -2,8 +2,6 @@ using Microsoft.AspNetCore.Mvc;
 using Service.DTOs.Chat;
 using Service.Services.Interfaces;
 
-namespace AgroBackEnd.Controllers;
-
 [ApiController]
 [Route("api/[controller]")]
 public class ChatController : ControllerBase
@@ -16,17 +14,30 @@ public class ChatController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult<ChatResponseDto>> Ask([FromBody] ChatRequestDto request, CancellationToken cancellationToken)
+    public async Task<ActionResult<ChatResponseDto>> Ask(ChatRequestDto request, CancellationToken ct)
     {
-        try
-        {
-            var result = await _chatService.AskAsync(request, cancellationToken);
-            return Ok(result);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
+        var result = await _chatService.AskAsync(request, ct);
+        return Ok(result);
+    }
+
+    [HttpGet("sessions/{userId}")]
+    public async Task<IActionResult> GetUserSessions(string userId)
+    {
+        var result = await _chatService.GetUserSessionsAsync(userId);
+        return Ok(result);
+    }
+
+    [HttpGet("messages/{sessionId}")]
+    public async Task<IActionResult> GetSessionMessages(Guid sessionId)
+    {
+        var result = await _chatService.GetSessionMessagesAsync(sessionId);
+        return Ok(result);
+    }
+
+    [HttpDelete("{sessionId}")]
+    public async Task<IActionResult> DeleteSession(Guid sessionId, [FromQuery] string userId)
+    {
+        await _chatService.DeleteSessionAsync(sessionId, userId);
+        return NoContent();
     }
 }
-
