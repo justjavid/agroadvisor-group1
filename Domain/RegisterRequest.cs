@@ -4,10 +4,15 @@ namespace Domain;
 
 public class RegisterRequest
 {
-    [Required(ErrorMessage = "Username is required.")]
-    [MinLength(3, ErrorMessage = "Username must be at least 3 characters.")]
-    [MaxLength(50, ErrorMessage = "Username cannot exceed 50 characters.")]
-    public string Username { get; set; } = string.Empty;
+    [Required(ErrorMessage = "Name is required.")]
+    [MinLength(2, ErrorMessage = "Name must be at least 2 characters.")]
+    [MaxLength(50, ErrorMessage = "Name cannot exceed 50 characters.")]
+    public string Name { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Surname is required.")]
+    [MinLength(2, ErrorMessage = "Surname must be at least 2 characters.")]
+    [MaxLength(50, ErrorMessage = "Surname cannot exceed 50 characters.")]
+    public string Surname { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Email is required.")]
     [EmailAddress(ErrorMessage = "Email is not valid.")]

@@ -1,9 +1,6 @@
-﻿// Service/AuthService.cs
-using Domain;
-using Domain.Models;
+﻿using Domain;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
-using Repository;
 using Repository.Interfaces;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -27,7 +24,6 @@ public class AuthService : IAuthService
         var user = await _userRepo.GetByEmailAsync(request.Email);
         if (user == null) return null;
 
-        // Verify password hash
         bool valid = BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash);
         if (!valid) return null;
 
@@ -37,11 +33,12 @@ public class AuthService : IAuthService
     public async Task<bool> RegisterAsync(RegisterRequest request)
     {
         var existing = await _userRepo.GetByEmailAsync(request.Email);
-        if (existing != null) return false; // email already taken
+        if (existing != null) return false;
 
-        var user = new User
+        var user = new Domain.Models.User
         {
-            Username = request.Username,
+            Name = request.Name,
+            Surname = request.Surname,
             Email = request.Email,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password)
         };
@@ -50,7 +47,22 @@ public class AuthService : IAuthService
         return true;
     }
 
-    private string GenerateToken(User user)
+    public async Task<bool> UpdatePasswordAsync(string email, UpdatePasswordRequest request)
+    {
+        var user = await _userRepo.GetByEmailAsync(email);
+        if (user == null) return false;
+
+        // Verify current password is correct
+        bool valid = BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash);
+        if (!valid) return false;
+
+        // Hash and save the new password
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+        await _userRepo.UpdateAsync(user);
+        return true;
+    }
+
+    private string GenerateToken(Domain.Models.User user)
     {
         var key = new SymmetricSecurityKey(
             Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));

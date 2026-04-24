@@ -1,6 +1,8 @@
 ﻿using Domain;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Service;
+using System.Security.Claims;
 
 namespace AgroBackEnd.Controllers;
 
@@ -33,5 +35,21 @@ public class AuthController : ControllerBase
             return Unauthorized("Invalid email or password.");
 
         return Ok(new { token });
+    }
+
+    [Authorize]
+    [HttpPut("update-password")]
+    public async Task<IActionResult> UpdatePassword([FromBody] UpdatePasswordRequest request)
+    {
+        // Get email from JWT token — no need to ask user to send it
+        var email = User.FindFirstValue(ClaimTypes.Email);
+        if (email == null)
+            return Unauthorized();
+
+        var success = await _authService.UpdatePasswordAsync(email, request);
+        if (!success)
+            return BadRequest("Current password is incorrect.");
+
+        return Ok("Password updated successfully.");
     }
 }
