@@ -22,6 +22,7 @@ public class ImageAnalysisService : IImageAnalysisService
     }
 
 
+
     public async Task<AnalyzeImageResponseDto> AnalyzeImageAsync(AnalyzeImageRequestDto dto)
     {
         var fullPrompt = dto.Prompt + @"

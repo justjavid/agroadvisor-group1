@@ -33,6 +33,7 @@ namespace Service.Services
 
             if (!response.IsSuccessStatusCode)
             {
+                // Return safe empty list on failure; retry handler will have already attempted transient errors.
                 return new List<string>(); 
             }
 

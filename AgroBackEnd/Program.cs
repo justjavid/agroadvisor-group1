@@ -28,8 +28,12 @@ builder.Services.AddDbContext<ImageAnalysisDbContext>(options =>
 
 // Repositories and application services
 builder.Services.AddScoped<IImageAnalysisRepository, ImageAnalysisRepository>();
-builder.Services.AddHttpClient<IImageAnalysisService, ImageAnalysisService>();
-builder.Services.AddHttpClient<IImageSearchService, ImageSearchService>();
+// Add a simple retry handler for transient errors and register HttpClients for services
+builder.Services.AddTransient<Service.Handlers.SimpleRetryHandler>();
+builder.Services.AddHttpClient<IImageAnalysisService, ImageAnalysisService>()
+    .AddHttpMessageHandler<Service.Handlers.SimpleRetryHandler>();
+builder.Services.AddHttpClient<IImageSearchService, ImageSearchService>()
+    .AddHttpMessageHandler<Service.Handlers.SimpleRetryHandler>();
 
 
 var app = builder.Build();
