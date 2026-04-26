@@ -1,4 +1,5 @@
 using Domain.Models.FertilizerCalculator;
+using Microsoft.EntityFrameworkCore;
 using Repository.Data;
 using Service.DTOs.FertilizerCalculatorDTOs.Requests;
 using Service.DTOs.FertilizerCalculatorDTOs.Responses;
@@ -38,5 +39,21 @@ public class CropRequirementsService : ICropRequirementsService
             P = entity.P,
             K = entity.K
         };
+    }
+
+    public async Task<List<AddCropRequirementsResponse>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        return await _db.CropRequirements
+            .AsNoTracking()
+            .Select(x => new AddCropRequirementsResponse
+            {
+                Id = x.Id,
+                CropType = x.CropType,
+                GrowthStage = x.GrowthStage,
+                N = x.N,
+                P = x.P,
+                K = x.K
+            })
+            .ToListAsync(cancellationToken);
     }
 }

@@ -24,4 +24,12 @@ public class CropRequirementsController : ControllerBase
         var created = await _cropRequirementsService.AddAsync(request, cancellationToken);
         return Created($"/api/croprequirements/{created.Id}", created);
     }
+
+    [HttpGet]
+    [ProducesResponseType(typeof(List<AddCropRequirementsResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<List<AddCropRequirementsResponse>>> Get(CancellationToken cancellationToken)
+    {
+        var items = await _cropRequirementsService.GetAllAsync(cancellationToken);
+        return Ok(items);
+    }
 }
