@@ -57,17 +57,15 @@ public class ImageAnalysisService : IImageAnalysisService
 
         var json = JsonSerializer.Serialize(requestBody);
 
-        var request = new HttpRequestMessage(HttpMethod.Post,
-            $"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={_apiKey}");
-
-        request.Content = new StringContent(json, Encoding.UTF8, "application/json");
-
         // Retry transient errors (503, 429, 5xx) using simple exponential backoff
         const int maxAttempts = 3;
         int delayMs = 1000;
         HttpResponseMessage response = null!;
         for (int attempt = 1; attempt <= maxAttempts; attempt++)
         {
+            var request = new HttpRequestMessage(HttpMethod.Post,
+                $"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={_apiKey}");
+            request.Content = new StringContent(json, Encoding.UTF8, "application/json");
             response = await _httpClient.SendAsync(request);
 
             if (response.IsSuccessStatusCode)

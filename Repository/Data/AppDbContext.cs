@@ -29,6 +29,9 @@ public class AppDbContext : DbContext
             entity.HasKey(x => x.Id);
             entity.Property(x => x.UserId).IsRequired().HasMaxLength(128);
             entity.Property(x => x.CreatedAtUtc).IsRequired();
+            entity.Property(x => x.Title).HasMaxLength(256);
+            entity.Property(x => x.UpdatedAtUtc);
+            entity.Property(x => x.IsDeleted).IsRequired().HasDefaultValue(false);
 
             entity.HasMany(x => x.Messages)
                 .WithOne(x => x.Session)
@@ -41,7 +44,10 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<ChatMessage>(entity =>
         {
             entity.HasKey(x => x.Id);
-            entity.Property(x => x.Role).IsRequired().HasMaxLength(32);
+            entity.Property(x => x.Role)
+                .IsRequired()
+                .HasMaxLength(32)
+                .HasConversion<string>();
             entity.Property(x => x.Content).IsRequired();
             entity.Property(x => x.CreatedAtUtc).IsRequired();
             entity.HasIndex(x => new { x.SessionId, x.CreatedAtUtc });

@@ -6,14 +6,14 @@
 #   SUFFIX              — unique 4–8 char suffix for globally-unique names (e.g. "ag42xk")
 #   SQL_ADMIN_PASSWORD  — Azure SQL admin password (min 8 chars, upper+lower+digit+symbol)
 #   JWT_KEY             — JWT signing key (≥32 chars)
-#   GEMINI_API_KEY      — Gemini API key (image analysis + AI insight)
-#   PEXELS_API_KEY      — Pexels API key
+#   GEMINI_API_KEY        — Gemini API key (image analysis + chatbot + AI insight)
+#   IMAGE_SEARCH_API_KEY  — SerpAPI key for plant disease image search
 #
 # Optional env vars (with defaults):
 #   RESOURCE_GROUP=AgroAdvisor-rg
 #   LOCATION=westeurope
 #   SQL_ADMIN=sqladmin
-#   AI_MODEL=gemini-1.5-flash
+#   AI_MODEL=gemini-2.5-flash
 
 set -euo pipefail
 
@@ -34,12 +34,13 @@ require_var SUFFIX
 require_var SQL_ADMIN_PASSWORD
 require_var JWT_KEY
 require_var GEMINI_API_KEY
-require_var PEXELS_API_KEY
+require_var IMAGE_SEARCH_API_KEY
 
 RESOURCE_GROUP="${RESOURCE_GROUP:-AgroAdvisor-rg}"
 LOCATION="${LOCATION:-westeurope}"
 SQL_ADMIN="${SQL_ADMIN:-sqladmin}"
-AI_MODEL="${AI_MODEL:-gemini-1.5-flash}"
+AI_MODEL="${AI_MODEL:-gemini-2.5-flash}"
+AI_ENDPOINT="${AI_ENDPOINT:-https://generativelanguage.googleapis.com/v1/models/{model}:generateContent}"
 
 SQL_SERVER="agroadvisor-sql-${SUFFIX}"
 SQL_DB="AgroAdvisor"
@@ -99,13 +100,13 @@ az webapp config appsettings set \
     Jwt__Issuer="AgroAdvisor" \
     Jwt__Audience="AgroAdvisor" \
     GeminiSettings__ApiKey="${GEMINI_API_KEY}" \
-    Pexels__ApiKey="${PEXELS_API_KEY}" \
+    ImageSearch__ApiKey="${IMAGE_SEARCH_API_KEY}" \
     AiOptions__ApiKey="${GEMINI_API_KEY}" \
     AiOptions__Model="${AI_MODEL}" \
-    AiOptions__Endpoint="https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent" \
+    AiOptions__Endpoint="${AI_ENDPOINT}" \
     ChatAiOptions__ApiKey="${GEMINI_API_KEY}" \
     ChatAiOptions__Model="${AI_MODEL}" \
-    ChatAiOptions__Endpoint="https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent" \
+    ChatAiOptions__Endpoint="${AI_ENDPOINT}" \
     ChatAiOptions__SystemPrompt="You are AgroAdvisor's agronomy assistant. Give concise, practical guidance for farming questions. Mention uncertainty when appropriate and end with: This is general guidance." \
   --output none
 
@@ -147,6 +148,6 @@ URL="https://${APP_NAME}.azurewebsites.net"
 echo
 echo "Done."
 echo "  App URL:   ${URL}"
-echo "  Test:      curl -X POST ${URL}/api/auth/register -H 'Content-Type: application/json' -d '{\"email\":\"test@a.com\",\"password\":\"Password123\",\"fullName\":\"Test\"}'"
+echo "  Test:      curl -X POST ${URL}/api/Auth/register -H 'Content-Type: application/json' -d '{\"name\":\"Test\",\"surname\":\"User\",\"email\":\"test@a.com\",\"password\":\"Password1!\"}'"
 echo
 echo "First request may take 20–60s if the SQL DB was auto-paused."

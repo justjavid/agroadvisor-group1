@@ -34,12 +34,36 @@ public class ChatController : ControllerBase
     [HttpGet("{sessionId:guid}/history")]
     [ProducesResponseType(typeof(IReadOnlyList<ChatMessageDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<IReadOnlyList<ChatMessageDto>>> History(Guid sessionId, CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyList<ChatMessageDto>>> GetSessionMessages(Guid sessionId, CancellationToken cancellationToken)
     {
         try
         {
-            var history = await _chatService.GetHistoryAsync(sessionId, cancellationToken);
-            return Ok(history);
+            var messages = await _chatService.GetSessionMessagesAsync(sessionId, cancellationToken);
+            return Ok(messages);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    [HttpGet("sessions/{userId}")]
+    [ProducesResponseType(typeof(IReadOnlyList<Guid>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<Guid>>> GetUserSessions(string userId, CancellationToken cancellationToken)
+    {
+        var sessions = await _chatService.GetUserSessionsAsync(userId, cancellationToken);
+        return Ok(sessions);
+    }
+
+    [HttpDelete("{sessionId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteSession(Guid sessionId, [FromQuery] string userId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _chatService.DeleteSessionAsync(sessionId, userId, cancellationToken);
+            return NoContent();
         }
         catch (KeyNotFoundException ex)
         {

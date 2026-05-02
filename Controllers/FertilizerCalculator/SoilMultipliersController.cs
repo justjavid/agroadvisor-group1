@@ -25,4 +25,12 @@ public class SoilMultipliersController : ControllerBase
         var created = await _soilMultiplierService.AddAsync(request, cancellationToken);
         return Created($"/api/soilmultipliers/{created.Id}", created);
     }
+
+    [HttpGet]
+    [ProducesResponseType(typeof(List<AddSoilMultiplierResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<List<AddSoilMultiplierResponse>>> Get(CancellationToken cancellationToken)
+    {
+        var items = await _soilMultiplierService.GetAllAsync(cancellationToken);
+        return Ok(items);
+    }
 }

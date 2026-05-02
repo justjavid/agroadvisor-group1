@@ -20,30 +20,45 @@ public class AuthService : IAuthService
         _config = config;
     }
 
-    public async Task<string> RegisterAsync(RegisterRequest request, CancellationToken ct = default)
+    public async Task<bool> RegisterAsync(RegisterRequest request, CancellationToken ct = default)
     {
         var existing = await _users.GetByEmailAsync(request.Email, ct);
         if (existing is not null)
-            throw new InvalidOperationException("Email already registered.");
+            return false;
 
         var user = new User
         {
+            Name = request.Name,
+            Surname = request.Surname,
             Email = request.Email,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-            FullName = request.FullName
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password)
         };
 
         await _users.AddAsync(user, ct);
-        return GenerateToken(user);
+        return true;
     }
 
-    public async Task<string> LoginAsync(LoginRequest request, CancellationToken ct = default)
+    public async Task<string?> LoginAsync(LoginRequest request, CancellationToken ct = default)
     {
         var user = await _users.GetByEmailAsync(request.Email, ct);
         if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
-            throw new UnauthorizedAccessException("Invalid credentials.");
+            return null;
 
         return GenerateToken(user);
+    }
+
+    public async Task<bool> UpdatePasswordAsync(string email, UpdatePasswordRequest request, CancellationToken ct = default)
+    {
+        var user = await _users.GetByEmailAsync(email, ct);
+        if (user is null)
+            return false;
+
+        if (!BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
+            return false;
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+        await _users.UpdateAsync(user, ct);
+        return true;
     }
 
     private string GenerateToken(User user)
@@ -55,7 +70,8 @@ public class AuthService : IAuthService
         var claims = new[]
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-            new Claim(JwtRegisteredClaimNames.Email, user.Email),
+            new Claim(ClaimTypes.Email, user.Email),
+            new Claim(ClaimTypes.Role, user.Role),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
@@ -66,7 +82,7 @@ public class AuthService : IAuthService
             issuer: issuer,
             audience: audience,
             claims: claims,
-            expires: DateTime.UtcNow.AddHours(2),
+            expires: DateTime.UtcNow.AddHours(24),
             signingCredentials: credentials);
 
         return new JwtSecurityTokenHandler().WriteToken(token);

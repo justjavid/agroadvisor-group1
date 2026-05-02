@@ -6,4 +6,5 @@ namespace Service.Services.FertilizerCalculator.Interfaces;
 public interface ICropRequirementsService
 {
     Task<AddCropRequirementsResponse> AddAsync(AddCropRequirementsRequest request, CancellationToken cancellationToken = default);
+    Task<List<AddCropRequirementsResponse>> GetAllAsync(CancellationToken cancellationToken = default);
 }

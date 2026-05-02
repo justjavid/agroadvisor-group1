@@ -25,4 +25,12 @@ public class FertilizersController : ControllerBase
         var created = await _fertilizerService.AddAsync(request, cancellationToken);
         return Created($"/api/fertilizers/{created.Id}", created);
     }
+
+    [HttpGet]
+    [ProducesResponseType(typeof(List<AddFertilizerResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<List<AddFertilizerResponse>>> Get(CancellationToken cancellationToken)
+    {
+        var items = await _fertilizerService.GetAllAsync(cancellationToken);
+        return Ok(items);
+    }
 }

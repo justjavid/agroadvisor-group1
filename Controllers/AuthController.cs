@@ -1,6 +1,8 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Service.DTOs.AuthDTOs;
 using Service.Services.Auth;
+using System.Security.Claims;
 
 namespace AgroAdvisor.Controllers;
 
@@ -18,28 +20,35 @@ public class AuthController : ControllerBase
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request, CancellationToken ct)
     {
-        try
-        {
-            var token = await _authService.RegisterAsync(request, ct);
-            return Ok(new { token });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var success = await _authService.RegisterAsync(request, ct);
+        if (!success)
+            return BadRequest(new { message = "Email already in use." });
+
+        return Ok(new { message = "Registered successfully." });
     }
 
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken ct)
     {
-        try
-        {
-            var token = await _authService.LoginAsync(request, ct);
-            return Ok(new { token });
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return Unauthorized(new { message = ex.Message });
-        }
+        var token = await _authService.LoginAsync(request, ct);
+        if (token == null)
+            return Unauthorized(new { message = "Invalid email or password." });
+
+        return Ok(new { token });
+    }
+
+    [Authorize]
+    [HttpPut("update-password")]
+    public async Task<IActionResult> UpdatePassword([FromBody] UpdatePasswordRequest request, CancellationToken ct)
+    {
+        var email = User.FindFirstValue(ClaimTypes.Email);
+        if (email == null)
+            return Unauthorized();
+
+        var success = await _authService.UpdatePasswordAsync(email, request, ct);
+        if (!success)
+            return BadRequest(new { message = "Current password is incorrect." });
+
+        return Ok(new { message = "Password updated successfully." });
     }
 }

@@ -37,12 +37,10 @@ namespace AgroAdvisor.Controllers
 
             var result = await _imageService.AnalyzeImageAsync(dto);
 
-            // 🔥 PEXELS INTEGRATION
             if (!string.IsNullOrWhiteSpace(result.DiseaseName))
             {
-                var query = $"{result.PlantName} {result.DiseaseName}";
-                var images = await _imageSearchService.SearchPhotosAsync(query);
-
+                var query = $"{result.DiseaseName} plant leaf close up infected leaves symptoms agriculture";
+                var images = await _imageSearchService.SearchImagesAsync(query);
                 result.ImageUrls = images;
             }
 

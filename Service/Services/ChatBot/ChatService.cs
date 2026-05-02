@@ -24,9 +24,7 @@ public class ChatService : IChatService
     public async Task<ChatResponseDto> AskAsync(ChatRequestDto request, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(request.Message))
-        {
             throw new InvalidOperationException("Message is required.");
-        }
 
         var session = await GetOrCreateSessionAsync(request, cancellationToken);
 
@@ -34,7 +32,7 @@ public class ChatService : IChatService
         {
             Id = Guid.NewGuid(),
             SessionId = session.Id,
-            Role = "user",
+            Role = ChatRole.User,
             Content = request.Message.Trim(),
             CreatedAtUtc = DateTime.UtcNow
         };
@@ -46,7 +44,7 @@ public class ChatService : IChatService
             .OrderBy(x => x.CreatedAtUtc)
             .Select(x => new ChatMessageDto
             {
-                Role = x.Role,
+                Role = x.Role.ToString().ToLower(),
                 Content = x.Content,
                 CreatedAtUtc = x.CreatedAtUtc
             })
@@ -58,24 +56,25 @@ public class ChatService : IChatService
         {
             Id = Guid.NewGuid(),
             SessionId = session.Id,
-            Role = "assistant",
+            Role = ChatRole.Assistant,
             Content = answer,
             CreatedAtUtc = DateTime.UtcNow
         };
 
         _db.ChatMessages.Add(assistantMessage);
+        session.UpdatedAtUtc = DateTime.UtcNow;
         await _db.SaveChangesAsync(cancellationToken);
 
         var history = priorMessages
             .Append(new ChatMessageDto
             {
-                Role = userMessage.Role,
+                Role = userMessage.Role.ToString().ToLower(),
                 Content = userMessage.Content,
                 CreatedAtUtc = userMessage.CreatedAtUtc
             })
             .Append(new ChatMessageDto
             {
-                Role = assistantMessage.Role,
+                Role = assistantMessage.Role.ToString().ToLower(),
                 Content = assistantMessage.Content,
                 CreatedAtUtc = assistantMessage.CreatedAtUtc
             })
@@ -89,24 +88,43 @@ public class ChatService : IChatService
         };
     }
 
-    public async Task<IReadOnlyList<ChatMessageDto>> GetHistoryAsync(Guid sessionId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<ChatMessageDto>> GetSessionMessagesAsync(Guid sessionId, CancellationToken cancellationToken = default)
     {
         var sessionExists = await _db.ChatSessions.AnyAsync(x => x.Id == sessionId, cancellationToken);
         if (!sessionExists)
-        {
             throw new KeyNotFoundException("Chat session not found.");
-        }
 
         return await _db.ChatMessages
             .Where(x => x.SessionId == sessionId)
             .OrderBy(x => x.CreatedAtUtc)
             .Select(x => new ChatMessageDto
             {
-                Role = x.Role,
+                Role = x.Role.ToString().ToLower(),
                 Content = x.Content,
                 CreatedAtUtc = x.CreatedAtUtc
             })
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Guid>> GetUserSessionsAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        return await _db.ChatSessions
+            .Where(x => x.UserId == userId && !x.IsDeleted)
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .Select(x => x.Id)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task DeleteSessionAsync(Guid sessionId, string userId, CancellationToken cancellationToken = default)
+    {
+        var session = await _db.ChatSessions
+            .FirstOrDefaultAsync(x => x.Id == sessionId && x.UserId == userId, cancellationToken);
+
+        if (session is null)
+            throw new KeyNotFoundException("Chat session not found.");
+
+        _db.ChatSessions.Remove(session);
+        await _db.SaveChangesAsync(cancellationToken);
     }
 
     private async Task<ChatSession> GetOrCreateSessionAsync(ChatRequestDto request, CancellationToken cancellationToken)
@@ -115,17 +133,13 @@ public class ChatService : IChatService
         {
             var existing = await _db.ChatSessions.FirstOrDefaultAsync(x => x.Id == sessionId, cancellationToken);
             if (existing is null)
-            {
                 throw new InvalidOperationException("The provided sessionId does not exist.");
-            }
 
             return existing;
         }
 
         if (string.IsNullOrWhiteSpace(request.UserId))
-        {
             throw new InvalidOperationException("UserId is required when creating a new chat session.");
-        }
 
         var session = new ChatSession
         {
@@ -144,9 +158,7 @@ public class ChatService : IChatService
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(_options.ApiKey))
-        {
             return "The chatbot is configured, but no AI API key is set yet. Add ChatAiOptions__ApiKey or AI_API_KEY to enable live responses.";
-        }
 
         using var request = BuildRequest(priorMessages, latestMessage);
 
@@ -179,11 +191,7 @@ public class ChatService : IChatService
     {
         var messages = new List<object>
         {
-            new
-            {
-                role = "system",
-                content = _options.SystemPrompt
-            }
+            new { role = "system", content = _options.SystemPrompt }
         };
 
         messages.AddRange(priorMessages.TakeLast(10).Select(x => new
@@ -192,18 +200,9 @@ public class ChatService : IChatService
             content = x.Content
         }));
 
-        messages.Add(new
-        {
-            role = "user",
-            content = latestMessage
-        });
+        messages.Add(new { role = "user", content = latestMessage });
 
-        var payload = new
-        {
-            model = _options.Model,
-            messages,
-            temperature = 0.4
-        };
+        var payload = new { model = _options.Model, messages, temperature = 0.4 };
 
         var request = new HttpRequestMessage(HttpMethod.Post, _options.Endpoint);
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _options.ApiKey);
@@ -215,53 +214,24 @@ public class ChatService : IChatService
     {
         var endpoint = _options.Endpoint;
         if (endpoint.Contains("{model}", StringComparison.OrdinalIgnoreCase))
-        {
             endpoint = endpoint.Replace("{model}", _options.Model, StringComparison.OrdinalIgnoreCase);
-        }
 
         if (!endpoint.Contains("key=", StringComparison.OrdinalIgnoreCase))
-        {
             endpoint += endpoint.Contains('?') ? $"&key={Uri.EscapeDataString(_options.ApiKey)}" : $"?key={Uri.EscapeDataString(_options.ApiKey)}";
-        }
 
-        var historyText = string.Join(
-            "\n",
-            priorMessages.TakeLast(10).Select(x => $"{x.Role}: {x.Content}"));
+        var historyText = string.Join("\n", priorMessages.TakeLast(10).Select(x => $"{x.Role}: {x.Content}"));
+        var prompt = string.IsNullOrWhiteSpace(historyText) ? latestMessage : $"{historyText}\nuser: {latestMessage}";
 
-        var prompt = string.IsNullOrWhiteSpace(historyText)
-            ? latestMessage
-            : $"{historyText}\nuser: {latestMessage}";
+        // Prepend system prompt into the user turn since gemini-2.5-flash preview does not
+        // accept systemInstruction as a top-level field via the REST v1 endpoint.
+        var fullPrompt = string.IsNullOrWhiteSpace(_options.SystemPrompt)
+            ? prompt
+            : $"{_options.SystemPrompt}\n\n{prompt}";
 
         var payload = new
         {
-            systemInstruction = new
-            {
-                parts = new[]
-                {
-                    new
-                    {
-                        text = _options.SystemPrompt
-                    }
-                }
-            },
-            contents = new[]
-            {
-                new
-                {
-                    role = "user",
-                    parts = new[]
-                    {
-                        new
-                        {
-                            text = prompt
-                        }
-                    }
-                }
-            },
-            generationConfig = new
-            {
-                temperature = 0.4
-            }
+            contents = new[] { new { role = "user", parts = new[] { new { text = fullPrompt } } } },
+            generationConfig = new { temperature = 0.4 }
         };
 
         var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
@@ -280,16 +250,7 @@ public class ChatService : IChatService
         using var doc = JsonDocument.Parse(responseBody);
 
         return isGemini
-            ? doc.RootElement
-                .GetProperty("candidates")[0]
-                .GetProperty("content")
-                .GetProperty("parts")[0]
-                .GetProperty("text")
-                .GetString() ?? "The AI returned an empty response."
-            : doc.RootElement
-                .GetProperty("choices")[0]
-                .GetProperty("message")
-                .GetProperty("content")
-                .GetString() ?? "The AI returned an empty response.";
+            ? doc.RootElement.GetProperty("candidates")[0].GetProperty("content").GetProperty("parts")[0].GetProperty("text").GetString() ?? "The AI returned an empty response."
+            : doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString() ?? "The AI returned an empty response.";
     }
 }

@@ -27,7 +27,7 @@ public class FertilizerAiInsightService : IFertilizerAiInsightService
         }
 
         var prompt =
-            $"Create insight for fertilizer plan. Crop: {result.CropType}, growth stage: {result.GrowthStage}, soil: {result.SoilType}, field size hectares: {result.FieldSizeHectares}, total N required: {result.TotalNRequired:F2}, total P required: {result.TotalPRequired:F2}, total K required: {result.TotalKRequired:F2}.";
+            $"Gübrələmə planı üçün qısa və praktik tövsiyə hazırla. Cavabı Azərbaycan dilində ver. Məhsul: {result.CropType}, inkişaf mərhələsi: {result.GrowthStage}, torpaq: {result.SoilType}, sahə (hektar): {result.FieldSizeHectares}, ümumi N tələbi: {result.TotalNRequired:F2}, ümumi P tələbi: {result.TotalPRequired:F2}, ümumi K tələbi: {result.TotalKRequired:F2}.";
 
         using var request = BuildRequest(prompt);
 
@@ -68,7 +68,7 @@ public class FertilizerAiInsightService : IFertilizerAiInsightService
                 new
                 {
                     role = "system",
-                    content = "You are an agronomy assistant. Return strictly valid JSON only with keys summary and suggestions. suggestions must be a JSON array with 3 concise actionable items."
+                    content = "Sən aqronomiya köməkçisisən. Yalnız summary və suggestions açarları olan tam düzgün JSON qaytar. suggestions 3 qısa və tətbiq oluna bilən maddədən ibarət JSON massiv olmalıdır. Bütün mətn Azərbaycan dilində olmalıdır."
                 },
                 new
                 {
@@ -106,7 +106,7 @@ public class FertilizerAiInsightService : IFertilizerAiInsightService
                 {
                     new
                     {
-                        text = "You are an agronomy assistant. Return strictly valid JSON only with keys summary and suggestions. suggestions must be a JSON array with 3 concise actionable items."
+                        text = "Sən aqronomiya köməkçisisən. Yalnız summary və suggestions açarları olan tam düzgün JSON qaytar. suggestions 3 qısa və tətbiq oluna bilən maddədən ibarət JSON massiv olmalıdır. Bütün mətn Azərbaycan dilində olmalıdır."
                     }
                 }
             },
@@ -212,7 +212,7 @@ public class FertilizerAiInsightService : IFertilizerAiInsightService
     private static (string Summary, List<string> Suggestions) FallbackInsights(CalculatorResultResponse result)
     {
         var summary =
-            $"For {result.FieldSizeHectares:F2} ha of {result.CropType} ({result.GrowthStage}), estimated nutrients are N {result.TotalNRequired:F2}, P {result.TotalPRequired:F2}, and K {result.TotalKRequired:F2}.";
+            $"{result.FieldSizeHectares:F2} ha {result.CropType} ({result.GrowthStage}) üçün təxmini qida tələbatı: N {result.TotalNRequired:F2}, P {result.TotalPRequired:F2}, K {result.TotalKRequired:F2}.";
 
         var highest = new[]
             {
@@ -225,9 +225,9 @@ public class FertilizerAiInsightService : IFertilizerAiInsightService
 
         var suggestions = new List<string>
         {
-            $"Prioritize nutrient source planning for {highest} because it has the highest total requirement.",
-            "Split fertilizer application into multiple doses to reduce nutrient loss and improve uptake efficiency.",
-            "Validate with soil and leaf analysis before final application to avoid over- or under-fertilization."
+            $"Ən yüksək ümumi tələb {highest} üçün olduğuna görə planlamada bu elementi prioritet edin.",
+            "Qida itkisini azaltmaq və mənimsənməni artırmaq üçün gübrəni bir neçə dozaya bölərək tətbiq edin.",
+            "Artıq və ya az gübrələmənin qarşısını almaq üçün son qərardan əvvəl torpaq və yarpaq analizini yoxlayın."
         };
 
         return (summary, suggestions);
