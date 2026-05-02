@@ -1,10 +1,14 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Service.DTOs.ChatBotDTOs;
 using Service.Services.ChatBot.Interfaces;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 
 namespace AgroAdvisor.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/[controller]")]
 public class ChatController : ControllerBase
 {
@@ -20,9 +24,12 @@ public class ChatController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ChatResponseDto>> Ask([FromBody] ChatRequestDto request, CancellationToken cancellationToken)
     {
+        var userId = GetUserId();
+        if (userId is null) return Unauthorized();
+
         try
         {
-            var response = await _chatService.AskAsync(request, cancellationToken);
+            var response = await _chatService.AskAsync(userId, request, cancellationToken);
             return Ok(response);
         }
         catch (InvalidOperationException ex)
@@ -36,9 +43,12 @@ public class ChatController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<IReadOnlyList<ChatMessageDto>>> GetSessionMessages(Guid sessionId, CancellationToken cancellationToken)
     {
+        var userId = GetUserId();
+        if (userId is null) return Unauthorized();
+
         try
         {
-            var messages = await _chatService.GetSessionMessagesAsync(sessionId, cancellationToken);
+            var messages = await _chatService.GetSessionMessagesAsync(userId, sessionId, cancellationToken);
             return Ok(messages);
         }
         catch (KeyNotFoundException ex)
@@ -47,10 +57,13 @@ public class ChatController : ControllerBase
         }
     }
 
-    [HttpGet("sessions/{userId}")]
+    [HttpGet("sessions")]
     [ProducesResponseType(typeof(IReadOnlyList<Guid>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IReadOnlyList<Guid>>> GetUserSessions(string userId, CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyList<Guid>>> GetUserSessions(CancellationToken cancellationToken)
     {
+        var userId = GetUserId();
+        if (userId is null) return Unauthorized();
+
         var sessions = await _chatService.GetUserSessionsAsync(userId, cancellationToken);
         return Ok(sessions);
     }
@@ -58,11 +71,14 @@ public class ChatController : ControllerBase
     [HttpDelete("{sessionId:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> DeleteSession(Guid sessionId, [FromQuery] string userId, CancellationToken cancellationToken)
+    public async Task<IActionResult> DeleteSession(Guid sessionId, CancellationToken cancellationToken)
     {
+        var userId = GetUserId();
+        if (userId is null) return Unauthorized();
+
         try
         {
-            await _chatService.DeleteSessionAsync(sessionId, userId, cancellationToken);
+            await _chatService.DeleteSessionAsync(userId, sessionId, cancellationToken);
             return NoContent();
         }
         catch (KeyNotFoundException ex)
@@ -70,4 +86,7 @@ public class ChatController : ControllerBase
             return NotFound(new { message = ex.Message });
         }
     }
+
+    private string? GetUserId() =>
+        User.FindFirstValue(JwtRegisteredClaimNames.Sub) ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
 }

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Service.DTOs.FertilizerCalculatorDTOs.Requests;
 using Service.DTOs.FertilizerCalculatorDTOs.Responses;
 using Service.Services.FertilizerCalculator;
@@ -17,6 +18,7 @@ public class SoilMultipliersController : ControllerBase
         _soilMultiplierService = soilMultiplierService;
     }
 
+    [Authorize]
     [HttpPost]
     [ProducesResponseType(typeof(AddSoilMultiplierResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

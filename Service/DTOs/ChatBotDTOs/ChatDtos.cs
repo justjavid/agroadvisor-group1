@@ -2,7 +2,6 @@ namespace Service.DTOs.ChatBotDTOs;
 
 public sealed class ChatRequestDto
 {
-    public string? UserId { get; init; }
     public Guid? SessionId { get; init; }
     public string Message { get; init; } = string.Empty;
 }

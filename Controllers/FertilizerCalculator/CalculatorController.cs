@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Service.DTOs.FertilizerCalculatorDTOs.Requests;
 using Service.DTOs.FertilizerCalculatorDTOs.Responses;
 using Service.Services.FertilizerCalculator;
@@ -17,6 +18,7 @@ public class CalculatorController : ControllerBase
         _calculatorService = calculatorService;
     }
 
+    [Authorize]
     [HttpPost("calculate")]
     [ProducesResponseType(typeof(CalculatorResultResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

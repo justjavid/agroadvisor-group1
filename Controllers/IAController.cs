@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Service.DTOs.ImageAnalysisDTOs;
 using Service.Services.ImageAnalysis.Interfaces;
@@ -6,6 +7,7 @@ using System.IO;
 
 namespace AgroAdvisor.Controllers
 {
+    [Authorize]
     [Route("api/[controller]/[action]")]
     [ApiController]
     public class IAController : ControllerBase

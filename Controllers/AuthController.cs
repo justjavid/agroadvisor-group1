@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Service.DTOs.AuthDTOs;
 using Service.Services.Auth;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 
 namespace AgroAdvisor.Controllers;
@@ -41,11 +42,11 @@ public class AuthController : ControllerBase
     [HttpPut("update-password")]
     public async Task<IActionResult> UpdatePassword([FromBody] UpdatePasswordRequest request, CancellationToken ct)
     {
-        var email = User.FindFirstValue(ClaimTypes.Email);
-        if (email == null)
+        var sub = User.FindFirstValue(JwtRegisteredClaimNames.Sub) ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(sub, out var userId))
             return Unauthorized();
 
-        var success = await _authService.UpdatePasswordAsync(email, request, ct);
+        var success = await _authService.UpdatePasswordAsync(userId, request, ct);
         if (!success)
             return BadRequest(new { message = "Current password is incorrect." });
 

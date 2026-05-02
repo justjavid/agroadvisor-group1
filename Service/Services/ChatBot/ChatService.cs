@@ -21,12 +21,14 @@ public class ChatService : IChatService
         _options = options;
     }
 
-    public async Task<ChatResponseDto> AskAsync(ChatRequestDto request, CancellationToken cancellationToken = default)
+    public async Task<ChatResponseDto> AskAsync(string userId, ChatRequestDto request, CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new InvalidOperationException("UserId is required.");
         if (string.IsNullOrWhiteSpace(request.Message))
             throw new InvalidOperationException("Message is required.");
 
-        var session = await GetOrCreateSessionAsync(request, cancellationToken);
+        var session = await GetOrCreateSessionAsync(userId, request, cancellationToken);
 
         var userMessage = new ChatMessage
         {
@@ -88,10 +90,10 @@ public class ChatService : IChatService
         };
     }
 
-    public async Task<IReadOnlyList<ChatMessageDto>> GetSessionMessagesAsync(Guid sessionId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<ChatMessageDto>> GetSessionMessagesAsync(string userId, Guid sessionId, CancellationToken cancellationToken = default)
     {
-        var sessionExists = await _db.ChatSessions.AnyAsync(x => x.Id == sessionId, cancellationToken);
-        if (!sessionExists)
+        var owns = await _db.ChatSessions.AnyAsync(x => x.Id == sessionId && x.UserId == userId && !x.IsDeleted, cancellationToken);
+        if (!owns)
             throw new KeyNotFoundException("Chat session not found.");
 
         return await _db.ChatMessages
@@ -115,7 +117,7 @@ public class ChatService : IChatService
             .ToListAsync(cancellationToken);
     }
 
-    public async Task DeleteSessionAsync(Guid sessionId, string userId, CancellationToken cancellationToken = default)
+    public async Task DeleteSessionAsync(string userId, Guid sessionId, CancellationToken cancellationToken = default)
     {
         var session = await _db.ChatSessions
             .FirstOrDefaultAsync(x => x.Id == sessionId && x.UserId == userId, cancellationToken);
@@ -123,28 +125,26 @@ public class ChatService : IChatService
         if (session is null)
             throw new KeyNotFoundException("Chat session not found.");
 
-        _db.ChatSessions.Remove(session);
+        session.IsDeleted = true;
+        session.UpdatedAtUtc = DateTime.UtcNow;
         await _db.SaveChangesAsync(cancellationToken);
     }
 
-    private async Task<ChatSession> GetOrCreateSessionAsync(ChatRequestDto request, CancellationToken cancellationToken)
+    private async Task<ChatSession> GetOrCreateSessionAsync(string userId, ChatRequestDto request, CancellationToken cancellationToken)
     {
         if (request.SessionId is Guid sessionId)
         {
-            var existing = await _db.ChatSessions.FirstOrDefaultAsync(x => x.Id == sessionId, cancellationToken);
+            var existing = await _db.ChatSessions.FirstOrDefaultAsync(x => x.Id == sessionId && x.UserId == userId && !x.IsDeleted, cancellationToken);
             if (existing is null)
-                throw new InvalidOperationException("The provided sessionId does not exist.");
+                throw new InvalidOperationException("The provided sessionId does not exist or does not belong to you.");
 
             return existing;
         }
 
-        if (string.IsNullOrWhiteSpace(request.UserId))
-            throw new InvalidOperationException("UserId is required when creating a new chat session.");
-
         var session = new ChatSession
         {
             Id = Guid.NewGuid(),
-            UserId = request.UserId.Trim(),
+            UserId = userId,
             CreatedAtUtc = DateTime.UtcNow
         };
 

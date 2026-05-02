@@ -47,9 +47,9 @@ public class AuthService : IAuthService
         return GenerateToken(user);
     }
 
-    public async Task<bool> UpdatePasswordAsync(string email, UpdatePasswordRequest request, CancellationToken ct = default)
+    public async Task<bool> UpdatePasswordAsync(int userId, UpdatePasswordRequest request, CancellationToken ct = default)
     {
-        var user = await _users.GetByEmailAsync(email, ct);
+        var user = await _users.GetByIdAsync(userId, ct);
         if (user is null)
             return false;
 
