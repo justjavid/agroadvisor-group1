@@ -45,10 +45,7 @@ builder.Services.AddSwaggerGen(options =>
         }
     };
     options.AddSecurityDefinition("Bearer", jwtScheme);
-    options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
-    {
-        { jwtScheme, Array.Empty<string>() }
-    });
+    options.OperationFilter<AuthorizeOperationFilter>();
 });
 
 builder.Services.AddCors(options =>
@@ -223,4 +220,37 @@ static string FirstNonEmpty(params string?[] values)
     }
 
     return string.Empty;
+}
+
+internal sealed class AuthorizeOperationFilter : Swashbuckle.AspNetCore.SwaggerGen.IOperationFilter
+{
+    public void Apply(Microsoft.OpenApi.Models.OpenApiOperation operation, Swashbuckle.AspNetCore.SwaggerGen.OperationFilterContext context)
+    {
+        var hasAuthorize =
+            context.MethodInfo.GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), true).Any() ||
+            (context.MethodInfo.DeclaringType?.GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), true).Any() ?? false);
+
+        var hasAllowAnonymous =
+            context.MethodInfo.GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AllowAnonymousAttribute), true).Any();
+
+        if (!hasAuthorize || hasAllowAnonymous) return;
+
+        operation.Security = new List<Microsoft.OpenApi.Models.OpenApiSecurityRequirement>
+        {
+            new()
+            {
+                {
+                    new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+                    {
+                        Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                        {
+                            Id = "Bearer",
+                            Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme
+                        }
+                    },
+                    Array.Empty<string>()
+                }
+            }
+        };
+    }
 }
