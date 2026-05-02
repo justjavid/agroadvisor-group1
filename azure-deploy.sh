@@ -40,7 +40,13 @@ RESOURCE_GROUP="${RESOURCE_GROUP:-AgroAdvisor-rg}"
 LOCATION="${LOCATION:-westeurope}"
 SQL_ADMIN="${SQL_ADMIN:-sqladmin}"
 AI_MODEL="${AI_MODEL:-gemini-2.5-flash}"
-AI_ENDPOINT="${AI_ENDPOINT:-https://generativelanguage.googleapis.com/v1/models/{model}:generateContent}"
+# NOTE: do not collapse this fallback into ${AI_ENDPOINT:-...} — bash brace
+# matching gets confused by the literal `{model}:...}` inside the default and
+# Azure ends up storing `{model:generateContent}`, which breaks the model
+# placeholder substitution at runtime.
+if [ -z "${AI_ENDPOINT:-}" ]; then
+  AI_ENDPOINT='https://generativelanguage.googleapis.com/v1/models/{model}:generateContent'
+fi
 
 SQL_SERVER="agroadvisor-sql-${SUFFIX}"
 SQL_DB="AgroAdvisor"

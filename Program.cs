@@ -30,6 +30,14 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod());
+});
+
 // Database — single SQL Server context for Auth, Image Analysis, and Fertilizer Calculator
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection is not configured.");
@@ -173,6 +181,8 @@ if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("WEBSITE_SITE_N
 {
     app.UseHttpsRedirection();
 }
+
+app.UseCors();
 
 app.UseAuthentication();
 app.UseAuthorization();
