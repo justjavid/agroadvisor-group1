@@ -1,24 +1,24 @@
 using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json;
+using Domain.Models.ChatBot;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-
 using Repository.Data;
-using Domain.Models.ChatBot;
-
 using Service.DTOs.Chat;
 using Service.Services.Interfaces;
 
 public class ChatService : IChatService
 {
-    private const int DailyLimitPerUser = 15;
+    private const int DefaultDailyLimitPerUser = 15;
+    private const int GeminiRetryCount = 3;
+    private const int DefaultGeminiTimeoutSeconds = 25;
 
     private readonly ChatBotDbContext _context;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _configuration;
 
-    private static readonly ConcurrentDictionary<(string, DateOnly), int> DailyCounters = new();
+    private static readonly ConcurrentDictionary<(string UserId, DateOnly Date), int> DailyCounters = new();
 
     public ChatService(
         ChatBotDbContext context,
@@ -35,43 +35,10 @@ public class ChatService : IChatService
         if (string.IsNullOrWhiteSpace(request.UserId) || string.IsNullOrWhiteSpace(request.Message))
             throw new InvalidOperationException("UserId və message boş ola bilməz.");
 
-        // 🔹 LIMIT (disabled)
-        /*
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var key = (request.UserId, today);
+        // ValidateDailyLimit(request.UserId);
 
-        var current = DailyCounters.AddOrUpdate(key, 1, (_, old) => old + 1);
-        if (current > DailyLimitPerUser)
-            throw new InvalidOperationException("Gündəlik limit keçildi");
-        */
+        var session = await GetOrCreateSessionAsync(request, cancellationToken);
 
-        ChatSession session;
-
-        // 🔹 SESSION TAP
-        if (request.SessionId.HasValue)
-        {
-            session = await _context.ChatSessions
-                .FirstOrDefaultAsync(x =>
-                    x.Id == request.SessionId.Value &&
-                    x.UserId == request.UserId &&
-                    !x.IsDeleted,
-                    cancellationToken)
-                ?? throw new InvalidOperationException("Session tapılmadı");
-        }
-        else
-        {
-            session = new ChatSession
-            {
-                Id = Guid.NewGuid(),
-                UserId = request.UserId,
-                Title = GenerateTitle(request.Message),
-                CreatedAtUtc = DateTime.UtcNow
-            };
-
-            _context.ChatSessions.Add(session);
-        }
-
-        // 🔹 USER MESSAGE
         _context.ChatMessages.Add(new ChatMessage
         {
             Id = Guid.NewGuid(),
@@ -83,7 +50,6 @@ public class ChatService : IChatService
 
         var answer = await GetAiResponse(request.Message, cancellationToken);
 
-        // 🔹 ASSISTANT MESSAGE
         _context.ChatMessages.Add(new ChatMessage
         {
             Id = Guid.NewGuid(),
@@ -101,12 +67,38 @@ public class ChatService : IChatService
         {
             Answer = answer,
             SessionId = session.Id,
-            History = await GetSessionMessagesInternal(session.Id)
+            History = await GetSessionMessagesInternalAsync(session.Id, cancellationToken)
         };
     }
 
-    // 🔐 INTERNAL (no user check needed)
-    private async Task<IReadOnlyList<ChatMessageDto>> GetSessionMessagesInternal(Guid sessionId)
+    private async Task<ChatSession> GetOrCreateSessionAsync(ChatRequestDto request, CancellationToken cancellationToken)
+    {
+        if (request.SessionId.HasValue)
+        {
+            return await _context.ChatSessions
+                .FirstOrDefaultAsync(x =>
+                        x.Id == request.SessionId.Value &&
+                        x.UserId == request.UserId &&
+                        !x.IsDeleted,
+                    cancellationToken)
+                ?? throw new InvalidOperationException("Session tapılmadı");
+        }
+
+        var session = new ChatSession
+        {
+            Id = Guid.NewGuid(),
+            UserId = request.UserId,
+            Title = GenerateTitle(request.Message),
+            CreatedAtUtc = DateTime.UtcNow
+        };
+
+        _context.ChatSessions.Add(session);
+        return session;
+    }
+
+    private async Task<IReadOnlyList<ChatMessageDto>> GetSessionMessagesInternalAsync(
+        Guid sessionId,
+        CancellationToken cancellationToken)
     {
         return await _context.ChatMessages
             .Where(x => x.SessionId == sessionId)
@@ -117,23 +109,24 @@ public class ChatService : IChatService
                 Content = x.Content,
                 CreatedAt = x.CreatedAtUtc
             })
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
     }
 
-    // 🔐 PUBLIC (with user validation)
-    public async Task<IReadOnlyList<ChatMessageDto>> GetSessionMessagesAsync(Guid sessionId, string userId)
+    public async Task<IReadOnlyList<ChatMessageDto>> GetSessionMessagesAsync(
+        Guid sessionId,
+        string userId,
+        CancellationToken cancellationToken)
     {
         var exists = await _context.ChatSessions
-            .AnyAsync(x => x.Id == sessionId && x.UserId == userId && !x.IsDeleted);
+            .AnyAsync(x => x.Id == sessionId && x.UserId == userId && !x.IsDeleted, cancellationToken);
 
         if (!exists)
             throw new InvalidOperationException("Session tapılmadı");
 
-        return await GetSessionMessagesInternal(sessionId);
+        return await GetSessionMessagesInternalAsync(sessionId, cancellationToken);
     }
 
-    // 🔥 DTO qaytarırıq (important)
-    public async Task<IReadOnlyList<ChatSessionDto>> GetUserSessionsAsync(string userId)
+    public async Task<IReadOnlyList<ChatSessionDto>> GetUserSessionsAsync(string userId, CancellationToken cancellationToken)
     {
         return await _context.ChatSessions
             .Where(x => x.UserId == userId && !x.IsDeleted)
@@ -145,13 +138,13 @@ public class ChatService : IChatService
                 CreatedAt = x.CreatedAtUtc,
                 UpdatedAt = x.UpdatedAtUtc
             })
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
     }
 
-    public async Task DeleteSessionAsync(Guid sessionId, string userId)
+    public async Task DeleteSessionAsync(Guid sessionId, string userId, CancellationToken cancellationToken)
     {
         var session = await _context.ChatSessions
-            .FirstOrDefaultAsync(x => x.Id == sessionId && x.UserId == userId);
+            .FirstOrDefaultAsync(x => x.Id == sessionId && x.UserId == userId && !x.IsDeleted, cancellationToken);
 
         if (session == null)
             throw new InvalidOperationException("Session tapılmadı");
@@ -159,10 +152,9 @@ public class ChatService : IChatService
         session.IsDeleted = true;
         session.UpdatedAtUtc = DateTime.UtcNow;
 
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(cancellationToken);
     }
 
-    // 🔥 SMART TITLE
     private static string GenerateTitle(string message)
     {
         if (string.IsNullOrWhiteSpace(message))
@@ -175,18 +167,21 @@ public class ChatService : IChatService
             : clean.Substring(0, 50) + "...";
     }
 
-    // 🔥 ROBUST AI CALL
     private async Task<string> GetAiResponse(string message, CancellationToken cancellationToken)
     {
         try
         {
             var apiKey = _configuration["Gemini:ApiKey"];
+            var baseUrl = _configuration["Gemini:BaseUrl"] ?? "https://generativelanguage.googleapis.com/";
+            var primaryModel = _configuration["Gemini:Model"] ?? "gemini-2.5-flash";
+            var fallbackModel = _configuration["Gemini:FallbackModel"];
+            var timeoutSeconds = _configuration.GetValue<int?>("Gemini:TimeoutSeconds") ?? DefaultGeminiTimeoutSeconds;
 
             if (string.IsNullOrWhiteSpace(apiKey))
                 return "AI konfiqurasiya olunmayıb.";
 
-            var client = _httpClientFactory.CreateClient();
-            client.Timeout = TimeSpan.FromSeconds(10);
+            var client = _httpClientFactory.CreateClient("gemini");
+            client.Timeout = TimeSpan.FromSeconds(Math.Max(5, timeoutSeconds));
 
             var payload = new
             {
@@ -202,15 +197,48 @@ public class ChatService : IChatService
                 }
             };
 
-            var response = await client.PostAsync(
-                $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}",
-                new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json"),
-                cancellationToken);
+            var payloadJson = JsonSerializer.Serialize(payload);
 
-            if (!response.IsSuccessStatusCode)
+            var modelsToTry = new List<string> { primaryModel };
+            if (!string.IsNullOrWhiteSpace(fallbackModel) &&
+                !string.Equals(fallbackModel, primaryModel, StringComparison.OrdinalIgnoreCase))
+            {
+                modelsToTry.Add(fallbackModel);
+            }
+
+            HttpResponseMessage? lastResponse = null;
+
+            foreach (var model in modelsToTry)
+            {
+                lastResponse = await SendGeminiRequestWithRetryAsync(
+                    client,
+                    BuildGeminiEndpoint(baseUrl, model, apiKey),
+                    payloadJson,
+                    cancellationToken);
+
+                if (lastResponse.IsSuccessStatusCode)
+                {
+                    break;
+                }
+
+                if (!IsTransientStatusCode((int)lastResponse.StatusCode))
+                {
+                    break;
+                }
+            }
+
+            if (lastResponse is null)
+            {
                 return "AI cavabı alınmadı";
+            }
 
-            var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+            if (!lastResponse.IsSuccessStatusCode)
+            {
+                var errorBody = await lastResponse.Content.ReadAsStringAsync(cancellationToken);
+                return BuildAiFailureMessage((int)lastResponse.StatusCode, errorBody);
+            }
+
+            var json = JsonDocument.Parse(await lastResponse.Content.ReadAsStringAsync(cancellationToken));
 
             return ExtractText(json.RootElement);
         }
@@ -242,5 +270,82 @@ public class ChatService : IChatService
         }
 
         return "Boş cavab";
+    }
+
+    private static string BuildGeminiEndpoint(string baseUrl, string model, string apiKey)
+    {
+        var normalizedBaseUrl = baseUrl.TrimEnd('/');
+        return $"{normalizedBaseUrl}/v1beta/models/{model}:generateContent?key={apiKey}";
+    }
+
+    private static string BuildAiFailureMessage(int statusCode, string errorBody)
+    {
+        const int maxLength = 220;
+
+        if (string.IsNullOrWhiteSpace(errorBody))
+        {
+            return $"AI cavabı alınmadı (HTTP {statusCode})";
+        }
+
+        var compactBody = errorBody.Replace("\r", string.Empty).Replace("\n", " ").Trim();
+        if (compactBody.Length > maxLength)
+        {
+            compactBody = compactBody[..maxLength] + "...";
+        }
+
+        return $"AI cavabı alınmadı (HTTP {statusCode}): {compactBody}";
+    }
+
+    private static bool IsTransientStatusCode(int statusCode)
+    {
+        return statusCode is 408 or 429 or >= 500;
+    }
+
+    private static async Task<HttpResponseMessage> SendGeminiRequestWithRetryAsync(
+        HttpClient client,
+        string endpoint,
+        string payloadJson,
+        CancellationToken cancellationToken)
+    {
+        HttpResponseMessage? lastResponse = null;
+
+        for (var attempt = 1; attempt <= GeminiRetryCount; attempt++)
+        {
+            lastResponse = await client.PostAsync(
+                endpoint,
+                new StringContent(payloadJson, Encoding.UTF8, "application/json"),
+                cancellationToken);
+
+            if (lastResponse.IsSuccessStatusCode || !IsTransientStatusCode((int)lastResponse.StatusCode))
+            {
+                return lastResponse;
+            }
+
+            if (attempt < GeminiRetryCount)
+            {
+                var delay = TimeSpan.FromMilliseconds(300 * attempt);
+                await Task.Delay(delay, cancellationToken);
+            }
+        }
+
+        return lastResponse!;
+    }
+
+    private void ValidateDailyLimit(string userId)
+    {
+        var dailyLimit = _configuration.GetValue<int?>("Chat:DailyLimitPerUser") ?? DefaultDailyLimitPerUser;
+        if (dailyLimit <= 0)
+        {
+            return;
+        }
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var key = (userId, today);
+
+        var currentCount = DailyCounters.AddOrUpdate(key, 1, (_, previousCount) => previousCount + 1);
+        if (currentCount > dailyLimit)
+        {
+            throw new InvalidOperationException("Gündəlik limit keçildi");
+        }
     }
 }

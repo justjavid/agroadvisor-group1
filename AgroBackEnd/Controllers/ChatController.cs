@@ -15,7 +15,6 @@ public class ChatController : ControllerBase
         _chatService = chatService;
     }
 
-    // 🔹 SEND MESSAGE
     [HttpPost]
     public async Task<ActionResult<ChatResponseDto>> Ask(
         [FromBody] ChatRequestDto request,
@@ -25,32 +24,32 @@ public class ChatController : ControllerBase
         return Ok(result);
     }
 
-    // 🔹 GET USER SESSIONS
     [HttpGet("users/{userId}/sessions")]
     public async Task<ActionResult<IReadOnlyList<ChatSessionDto>>> GetUserSessions(
-        string userId)
+        string userId,
+        CancellationToken ct)
     {
-        var sessions = await _chatService.GetUserSessionsAsync(userId);
+        var sessions = await _chatService.GetUserSessionsAsync(userId, ct);
         return Ok(sessions);
     }
 
-    // 🔹 GET SESSION MESSAGES
     [HttpGet("sessions/{sessionId}/messages")]
-    public async Task<IActionResult> GetSessionMessages(
+    public async Task<ActionResult<IReadOnlyList<ChatMessageDto>>> GetSessionMessages(
         Guid sessionId,
-        [FromQuery] string userId)
+        [FromQuery] string userId,
+        CancellationToken ct)
     {
-        var result = await _chatService.GetSessionMessagesAsync(sessionId, userId);
+        var result = await _chatService.GetSessionMessagesAsync(sessionId, userId, ct);
         return Ok(result);
     }
 
-    // 🔹 DELETE SESSION (soft delete)
     [HttpDelete("sessions/{sessionId}")]
     public async Task<IActionResult> DeleteSession(
         Guid sessionId,
-        [FromQuery] string userId)
+        [FromQuery] string userId,
+        CancellationToken ct)
     {
-        await _chatService.DeleteSessionAsync(sessionId, userId);
+        await _chatService.DeleteSessionAsync(sessionId, userId, ct);
         return NoContent();
     }
 }

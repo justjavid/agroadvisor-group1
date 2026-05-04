@@ -9,7 +9,7 @@ public sealed class ChatRequestDto
 
 public sealed class ChatMessageDto
 {
-    public required string Role { get; init; } 
+    public required string Role { get; init; }
     public required string Content { get; init; }
     public DateTime CreatedAt { get; init; }
 }

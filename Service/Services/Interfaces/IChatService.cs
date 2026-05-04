@@ -8,9 +8,9 @@ public interface IChatService
 {
     Task<ChatResponseDto> AskAsync(ChatRequestDto request, CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<ChatMessageDto>> GetSessionMessagesAsync(Guid sessionId, string userId);
+    Task<IReadOnlyList<ChatMessageDto>> GetSessionMessagesAsync(Guid sessionId, string userId, CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<ChatSessionDto>> GetUserSessionsAsync(string userId);
+    Task<IReadOnlyList<ChatSessionDto>> GetUserSessionsAsync(string userId, CancellationToken cancellationToken);
 
-    Task DeleteSessionAsync(Guid sessionId, string userId);
+    Task DeleteSessionAsync(Guid sessionId, string userId, CancellationToken cancellationToken);
 }

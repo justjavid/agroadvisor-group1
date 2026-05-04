@@ -1,16 +1,25 @@
 ﻿using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace AgroBackEnd.Middlewares;
 
 public class ExceptionMiddleware
 {
     private readonly RequestDelegate _next;
+    private readonly ILogger<ExceptionMiddleware> _logger;
+    private readonly IHostEnvironment _environment;
 
-    public ExceptionMiddleware(RequestDelegate next)
+    public ExceptionMiddleware(
+        RequestDelegate next,
+        ILogger<ExceptionMiddleware> logger,
+        IHostEnvironment environment)
     {
         _next = next;
+        _logger = logger;
+        _environment = environment;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -21,11 +30,14 @@ public class ExceptionMiddleware
         }
         catch (InvalidOperationException ex)
         {
+            _logger.LogWarning(ex, "Business validation error");
             await HandleException(context, ex.Message, HttpStatusCode.BadRequest);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            await HandleException(context, "Internal server error", HttpStatusCode.InternalServerError);
+            _logger.LogError(ex, "Unhandled exception");
+            var message = _environment.IsDevelopment() ? ex.Message : "Internal server error";
+            await HandleException(context, message, HttpStatusCode.InternalServerError);
         }
     }
 
