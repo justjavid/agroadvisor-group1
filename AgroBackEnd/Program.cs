@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Repository.Data;
 using Service.Services;
 using Service.Services.Interfaces;
-
+using AgroBackEnd.Middlewares;
 var builder = WebApplication.CreateBuilder(args);
 
 // Controllers
@@ -33,7 +33,9 @@ if (app.Environment.IsDevelopment())
 
 // Middleware
 app.UseHttpsRedirection();
+app.UseMiddleware<ExceptionMiddleware>();
 app.UseAuthorization();
+
 
 // Endpoints
 app.MapControllers();

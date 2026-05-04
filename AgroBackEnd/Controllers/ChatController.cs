@@ -2,8 +2,10 @@ using Microsoft.AspNetCore.Mvc;
 using Service.DTOs.Chat;
 using Service.Services.Interfaces;
 
+namespace AgroBackEnd.Controllers;
+
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/chats")]
 public class ChatController : ControllerBase
 {
     private readonly IChatService _chatService;
@@ -13,29 +15,40 @@ public class ChatController : ControllerBase
         _chatService = chatService;
     }
 
+    // 🔹 SEND MESSAGE
     [HttpPost]
-    public async Task<ActionResult<ChatResponseDto>> Ask(ChatRequestDto request, CancellationToken ct)
+    public async Task<ActionResult<ChatResponseDto>> Ask(
+        [FromBody] ChatRequestDto request,
+        CancellationToken ct)
     {
         var result = await _chatService.AskAsync(request, ct);
         return Ok(result);
     }
 
-    [HttpGet("sessions/{userId}")]
-    public async Task<IActionResult> GetUserSessions(string userId)
+    // 🔹 GET USER SESSIONS
+    [HttpGet("users/{userId}/sessions")]
+    public async Task<ActionResult<IReadOnlyList<ChatSessionDto>>> GetUserSessions(
+        string userId)
     {
-        var result = await _chatService.GetUserSessionsAsync(userId);
+        var sessions = await _chatService.GetUserSessionsAsync(userId);
+        return Ok(sessions);
+    }
+
+    // 🔹 GET SESSION MESSAGES
+    [HttpGet("sessions/{sessionId}/messages")]
+    public async Task<IActionResult> GetSessionMessages(
+        Guid sessionId,
+        [FromQuery] string userId)
+    {
+        var result = await _chatService.GetSessionMessagesAsync(sessionId, userId);
         return Ok(result);
     }
 
-    [HttpGet("messages/{sessionId}")]
-    public async Task<IActionResult> GetSessionMessages(Guid sessionId)
-    {
-        var result = await _chatService.GetSessionMessagesAsync(sessionId);
-        return Ok(result);
-    }
-
-    [HttpDelete("{sessionId}")]
-    public async Task<IActionResult> DeleteSession(Guid sessionId, [FromQuery] string userId)
+    // 🔹 DELETE SESSION (soft delete)
+    [HttpDelete("sessions/{sessionId}")]
+    public async Task<IActionResult> DeleteSession(
+        Guid sessionId,
+        [FromQuery] string userId)
     {
         await _chatService.DeleteSessionAsync(sessionId, userId);
         return NoContent();

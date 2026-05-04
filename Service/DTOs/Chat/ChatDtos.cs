@@ -20,3 +20,11 @@ public sealed class ChatResponseDto
     public required Guid SessionId { get; init; }
     public required IReadOnlyList<ChatMessageDto> History { get; init; }
 }
+
+public sealed class ChatSessionDto
+{
+    public Guid Id { get; init; }
+    public string? Title { get; init; }
+    public DateTime CreatedAt { get; init; }
+    public DateTime? UpdatedAt { get; init; }
+}
