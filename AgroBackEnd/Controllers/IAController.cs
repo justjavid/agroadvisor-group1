@@ -12,11 +12,14 @@ namespace AgroBackEnd.Controllers
     {
         private readonly IImageAnalysisService _imageService;
         private readonly IImageSearchService _imageSearchService;
+        private readonly Service.Services.Interfaces.ISessionService _sessionService;
 
-        public IAController(IImageAnalysisService imageService, IImageSearchService imageSearchService)
+        public IAController(IImageAnalysisService imageService, IImageSearchService imageSearchService,
+            Service.Services.Interfaces.ISessionService sessionService)
         {
             _imageService = imageService;
             _imageSearchService = imageSearchService;
+            _sessionService = sessionService;
         }
 
         [HttpPost]
@@ -35,7 +38,7 @@ namespace AgroBackEnd.Controllers
             };
 
 
-                var result = await _imageService.AnalyzeImageAsync(dto);
+            var result = await _imageService.AnalyzeImageAsync(dto);
 
             if (!string.IsNullOrWhiteSpace(result.DiseaseName))
             {
@@ -46,8 +49,37 @@ namespace AgroBackEnd.Controllers
                 result.ImageUrls = images;
             }
 
-            return Ok(result);
+            // Save session using session service
+            var userId = User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var sessionId = await _sessionService.CreateSessionAsync(result, dto.Prompt, userId);
 
+            return Ok(new { sessionId, result });
+
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetMySessions()
+        {
+            var userId = User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrWhiteSpace(userId))
+                return Unauthorized();
+
+            var sessions = await _sessionService.GetUserSessionsAsync(userId);
+            return Ok(sessions);
+        }
+
+        [HttpGet("{sessionId}")]
+        public async Task<IActionResult> GetSession(Guid sessionId)
+        {
+            var userId = User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrWhiteSpace(userId))
+                return Unauthorized();
+
+            var session = await _sessionService.GetSessionAsync(sessionId);
+            if (session == null || session.UserId != userId)
+                return NotFound();
+
+            return Ok(session);
         }
 
 

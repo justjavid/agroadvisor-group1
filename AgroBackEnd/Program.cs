@@ -7,7 +7,7 @@ using Service.Services.Interfaces;
 using Service.Services;
 
 var builder = WebApplication.CreateBuilder(args);
-
+Console.WriteLine(builder.Configuration.GetConnectionString("DefaultConnection"));
 // Framework services
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -18,6 +18,20 @@ builder.Services.AddSwaggerGen(options =>
         Title = "Gemini API",
         Version = "v1"
     });
+});
+
+// CORS - allow common frontend dev origins
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+        policy.WithOrigins(
+            "http://localhost:3000", "https://localhost:3000",
+            "http://localhost:5173", "https://localhost:5173",
+            "http://localhost:4200", "https://localhost:4200"
+        )
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+    );
 });
 
 // Database
@@ -34,6 +48,8 @@ builder.Services.AddHttpClient<IImageAnalysisService, ImageAnalysisService>()
     .AddHttpMessageHandler<Service.Handlers.SimpleRetryHandler>();
 builder.Services.AddHttpClient<IImageSearchService, ImageSearchService>()
     .AddHttpMessageHandler<Service.Handlers.SimpleRetryHandler>();
+// Session service
+builder.Services.AddScoped<ISessionService, SessionService>();
 
 
 var app = builder.Build();
@@ -50,6 +66,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors("AllowFrontend");
 app.UseAuthorization();
 app.MapControllers();
 
