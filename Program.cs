@@ -108,6 +108,7 @@ builder.Services.AddScoped(sp =>
 // Services - Image Analysis
 builder.Services.AddHttpClient<IImageAnalysisService, ImageAnalysisService>();
 builder.Services.AddHttpClient<IImageSearchService, ImageSearchService>();
+builder.Services.AddScoped<IAnalysisSessionService, AnalysisSessionService>();
 
 // Services - Fertilizer Calculator
 builder.Services.AddScoped<IFertilizerService, FertilizerService>();
@@ -182,6 +183,11 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
 });
+
+// Ensure wwwroot/uploads exists at startup, then serve it as a static file root.
+var uploadsPath = Path.Combine(app.Environment.ContentRootPath, "wwwroot", "uploads");
+Directory.CreateDirectory(uploadsPath);
+app.UseStaticFiles();
 
 app.UseSwagger();
 app.UseSwaggerUI(options =>
