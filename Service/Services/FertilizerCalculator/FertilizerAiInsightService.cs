@@ -50,7 +50,11 @@ public class FertilizerAiInsightService : IFertilizerAiInsightService
 
         using var request = BuildRequest(prompt);
         using var response = await _httpClient.SendAsync(request, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new HttpRequestException($"Gemini API error {(int)response.StatusCode}: {errorBody}");
+        }
 
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
         return ParseAiResponse(body, IsGeminiConfigured());
@@ -180,6 +184,7 @@ public class FertilizerAiInsightService : IFertilizerAiInsightService
             {
                 string? value = item.ValueKind == JsonValueKind.String
                     ? item.GetString()
+                    : item.TryGetProperty("suggestion", out var s) ? s.GetString()
                     : item.TryGetProperty("recommendation", out var r) ? r.GetString()
                     : item.TryGetProperty("text", out var t) ? t.GetString()
                     : item.TryGetProperty("content", out var c) ? c.GetString()

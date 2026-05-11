@@ -4,13 +4,13 @@ using Repository.Data;
 using Service.Services;
 using Service.Services.Interfaces;
 
+var envPath = Path.Combine(Directory.GetCurrentDirectory(), ".env");
+if (!File.Exists(envPath))
+    envPath = Path.Combine(Directory.GetCurrentDirectory(), "..", ".env");
+
 try
 {
-    var envPath = Path.Combine(AppContext.BaseDirectory, ".env");
-    if (!File.Exists(envPath))
-        envPath = Path.Combine(Directory.GetCurrentDirectory(), ".env");
-    if (File.Exists(envPath))
-        Env.Load(envPath);
+    Env.Load(envPath);
 }
 catch
 {
@@ -33,7 +33,7 @@ builder.Services.AddScoped<ISoilMultiplierService, SoilMultiplierService>();
 builder.Services.AddScoped<ICropRequirementsService, CropRequirementsService>();
 builder.Services.AddScoped<ICalculatorService, CalculatorService>();
 builder.Services.AddHttpClient<IFertilizerAiInsightService, FertilizerAiInsightService>()
-    .ConfigureHttpClient(client => client.Timeout = TimeSpan.FromSeconds(60));
+    .ConfigureHttpClient(client => client.Timeout = TimeSpan.FromSeconds(20));
 builder.Services.AddScoped(sp =>
 {
     var options = builder.Configuration.GetSection("AiOptions").Get<AiOptions>() ?? new AiOptions();

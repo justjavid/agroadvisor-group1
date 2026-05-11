@@ -59,17 +59,9 @@ public class CalculatorService : ICalculatorService
             TotalKRequired = totalKRequired
         };
 
-        try
-        {
-            var aiInsight = await _fertilizerAiInsightService.GenerateInsightsAsync(result, cancellationToken);
-            result.AiSummary = aiInsight.Summary;
-            result.AiSuggestions = aiInsight.Suggestions;
-        }
-        catch (Exception ex)
-        {
-            result.AiSummary = "AI xidməti hal-hazırda əlçatmazdır.";
-            result.AiSuggestions = [$"Xəta: {ex.GetType().Name}: {ex.Message}"];
-        }
+        var aiInsight = await _fertilizerAiInsightService.GenerateInsightsAsync(result, cancellationToken);
+        result.AiSummary = aiInsight.Summary;
+        result.AiSuggestions = aiInsight.Suggestions;
 
         return result;
     }
