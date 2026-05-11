@@ -8,5 +8,6 @@ namespace Repository.Repositories.Interfaces
         Task AddAsync(AnalysisData entity);
         Task<List<AnalysisData>> GetByUserAsync(string userId);
         Task<AnalysisData?> GetBySessionIdAsync(Guid sessionId);
+        Task DeleteAsync(Guid sessionId);
     }
 }

@@ -1,6 +1,4 @@
-﻿using Domain.Models.ImageAnalysis;
-using Microsoft.Extensions.Configuration;
-using Repository.Repositories.Interfaces;
+﻿using Microsoft.Extensions.Configuration;
 using Service.DTOs.ImageAnalysisDTOs;
 using Service.Services.Interfaces;
 using System.Text;

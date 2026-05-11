@@ -33,5 +33,13 @@ namespace Repository.Repositories
             return await _context.AnalysisData.FirstOrDefaultAsync(a => a.SessionId == sessionId);
         }
 
+        public async Task DeleteAsync(Guid sessionId)
+        {
+            var entity = await _context.AnalysisData.FirstOrDefaultAsync(a => a.SessionId == sessionId);
+            if (entity == null) return;
+            _context.AnalysisData.Remove(entity);
+            await _context.SaveChangesAsync();
+        }
+
     }
 }

@@ -12,10 +12,11 @@ namespace AgroBackEnd.Controllers
     {
         private readonly IImageAnalysisService _imageService;
         private readonly IImageSearchService _imageSearchService;
-        private readonly Service.Services.Interfaces.ISessionService _sessionService;
+        private readonly ISessionService _sessionService;
 
-        public IAController(IImageAnalysisService imageService, IImageSearchService imageSearchService,
-            Service.Services.Interfaces.ISessionService sessionService)
+        public IAController(IImageAnalysisService imageService, 
+           IImageSearchService imageSearchService,
+           ISessionService sessionService)
         {
             _imageService = imageService;
             _imageSearchService = imageSearchService;
@@ -30,7 +31,13 @@ namespace AgroBackEnd.Controllers
 
             using var ms = new MemoryStream();
             await request.File.CopyToAsync(ms);
-
+            // Save uploaded file to wwwroot/uploads and set ImageUrl
+            var uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+            if (!Directory.Exists(uploadsDir)) Directory.CreateDirectory(uploadsDir);
+            var fileName = $"{Guid.NewGuid()}{Path.GetExtension(request.File.FileName)}";
+            var filePath = Path.Combine(uploadsDir, fileName);
+            await System.IO.File.WriteAllBytesAsync(filePath, ms.ToArray());
+            var imageUrl = $"/uploads/{fileName}";
             var dto = new AnalyzeImageRequestDto
             {
                 ImageBase64 = Convert.ToBase64String(ms.ToArray()),
@@ -51,7 +58,7 @@ namespace AgroBackEnd.Controllers
 
             // Save session using session service
             var userId = User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-            var sessionId = await _sessionService.CreateSessionAsync(result, dto.Prompt, userId);
+            var sessionId = await _sessionService.CreateSessionAsync(result, dto.Prompt, userId, imageUrl);
 
             return Ok(new { sessionId, result });
 
@@ -80,6 +87,21 @@ namespace AgroBackEnd.Controllers
                 return NotFound();
 
             return Ok(session);
+        }
+
+        [HttpDelete("{sessionId}")]
+        public async Task<IActionResult> DeleteSession(Guid sessionId)
+        {
+            var userId = User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrWhiteSpace(userId))
+                return Unauthorized();
+
+            var session = await _sessionService.GetSessionAsync(sessionId);
+            if (session == null || session.UserId != userId)
+                return NotFound();
+
+            await _sessionService.DeleteSessionAsync(sessionId, userId);
+            return NoContent();
         }
 
 
