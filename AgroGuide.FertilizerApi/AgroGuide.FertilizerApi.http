@@ -1,0 +1,6 @@
+@AgroGuide.FertilizerApi_HostAddress = http://localhost:5248
+
+GET {{AgroGuide.FertilizerApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

@@ -1,0 +1,25 @@
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+
+# .NET build output
+bin/
+obj/
+*.user
+*.suo
+.vs/
+
+# macOS
+.DS_Store
+
+# JetBrains IDE
+.idea/
+
+# SQLite
+*.db
+*.db-shm
+*.db-wal
+
+# Logs
+*.log
