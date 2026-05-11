@@ -26,8 +26,29 @@ public class FertilizerAiInsightService : IFertilizerAiInsightService
             return FallbackInsights(result);
         }
 
-        var prompt =
-            $"Gübrələmə planı üçün qısa və praktik tövsiyə hazırla. Cavabı Azərbaycan dilində ver. Məhsul: {result.CropType}, inkişaf mərhələsi: {result.GrowthStage}, torpaq: {result.SoilType}, sahə (hektar): {result.FieldSizeHectares}, ümumi N tələbi: {result.TotalNRequired:F2}, ümumi P tələbi: {result.TotalPRequired:F2}, ümumi K tələbi: {result.TotalKRequired:F2}.";
+        var prompt = $"""
+            Aşağıdakı hesablanmış gübrələmə məlumatlarına əsaslanaraq konkret tövsiyə hazırla:
+
+            Məhsul: {result.CropType}
+            İnkişaf mərhələsi: {result.GrowthStage}
+            Torpaq növü: {result.SoilType}
+            Sahə ölçüsü: {result.FieldSizeHectares:F2} ha
+
+            Hektara əsas qida tələbatı:
+            - N (azot): {result.BaseNPerHectare:F2} kq/ha
+            - P (fosfor): {result.BasePPerHectare:F2} kq/ha
+            - K (kalium): {result.BaseKPerHectare:F2} kq/ha
+
+            Torpaq/mərhələ düzəliş əmsalları:
+            - N əmsalı: {result.AppliedNMultiplier:F2}
+            - P əmsalı: {result.AppliedPMultiplier:F2}
+            - K əmsalı: {result.AppliedKMultiplier:F2}
+
+            Sahə üçün ümumi tələbat:
+            - N (azot): {result.TotalNRequired:F2} kq
+            - P (fosfor): {result.TotalPRequired:F2} kq
+            - K (kalium): {result.TotalKRequired:F2} kq
+            """;
 
         using var request = BuildRequest(prompt);
 
@@ -68,7 +89,7 @@ public class FertilizerAiInsightService : IFertilizerAiInsightService
                 new
                 {
                     role = "system",
-                    content = "Sən aqronomiya köməkçisisən. Yalnız summary və suggestions açarları olan tam düzgün JSON qaytar. suggestions 3 qısa və tətbiq oluna bilən maddədən ibarət JSON massiv olmalıdır. Bütün mətn Azərbaycan dilində olmalıdır."
+                    content = "Sən aqronomiya köməkçisisən. Verilən hesablanmış dəyərlərə (kq, ha, əmsallar) istinad edərək konkret tövsiyə hazırla. Yalnız summary və suggestions açarları olan tam düzgün JSON qaytar. summary bir cümlə olmalı və ümumi tələbatı xülasə etməlidir. suggestions 3 maddədən ibarət JSON massiv olmalıdır; hər maddə konkret rəqəmlərə istinad etməli və bu məhsul, torpaq növü və inkişaf mərhələsi üçün praktik fəaliyyət tövsiyə etməlidir. Ümumi ifadələrdən çəkin. Bütün mətn Azərbaycan dilində olmalıdır."
                 },
                 new
                 {
@@ -106,7 +127,7 @@ public class FertilizerAiInsightService : IFertilizerAiInsightService
                 {
                     new
                     {
-                        text = "Sən aqronomiya köməkçisisən. Yalnız summary və suggestions açarları olan tam düzgün JSON qaytar. suggestions 3 qısa və tətbiq oluna bilən maddədən ibarət JSON massiv olmalıdır. Bütün mətn Azərbaycan dilində olmalıdır."
+                        text = "Sən aqronomiya köməkçisisən. Verilən hesablanmış dəyərlərə (kq, ha, əmsallar) istinad edərək konkret tövsiyə hazırla. Yalnız summary və suggestions açarları olan tam düzgün JSON qaytar. summary bir cümlə olmalı və ümumi tələbatı xülasə etməlidir. suggestions 3 maddədən ibarət JSON massiv olmalıdır; hər maddə konkret rəqəmlərə istinad etməli və bu məhsul, torpaq növü və inkişaf mərhələsi üçün praktik fəaliyyət tövsiyə etməlidir. Ümumi ifadələrdən çəkin. Bütün mətn Azərbaycan dilində olmalıdır."
                     }
                 }
             },
@@ -177,7 +198,13 @@ public class FertilizerAiInsightService : IFertilizerAiInsightService
             {
                 foreach (var item in suggestionsElement.EnumerateArray())
                 {
-                    var value = item.GetString();
+                    string? value = item.ValueKind == JsonValueKind.String
+                        ? item.GetString()
+                        : item.TryGetProperty("suggestion", out var s) ? s.GetString()
+                        : item.TryGetProperty("recommendation", out var r) ? r.GetString()
+                        : item.TryGetProperty("text", out var t) ? t.GetString()
+                        : item.TryGetProperty("content", out var c) ? c.GetString()
+                        : item.ToString();
                     if (!string.IsNullOrWhiteSpace(value))
                     {
                         suggestions.Add(value);
