@@ -119,18 +119,14 @@ public class FertilizerAiInsightService : IFertilizerAiInsightService
             endpoint += endpoint.Contains('?') ? $"&key={Uri.EscapeDataString(_options.ApiKey)}" : $"?key={Uri.EscapeDataString(_options.ApiKey)}";
         }
 
+        // gemini-2.5-flash on the /v1/ endpoint rejects a top-level
+        // systemInstruction field, so embed the system prompt directly
+        // into the user turn instead.
+        const string systemPrompt = "Sən aqronomiya köməkçisisən. Verilən hesablanmış dəyərlərə (kq, ha, əmsallar) istinad edərək konkret tövsiyə hazırla. Yalnız summary və suggestions açarları olan tam düzgün JSON qaytar. summary bir cümlə olmalı və ümumi tələbatı xülasə etməlidir. suggestions 3 maddədən ibarət JSON massiv olmalıdır; hər maddə konkret rəqəmlərə istinad etməli və bu məhsul, torpaq növü və inkişaf mərhələsi üçün praktik fəaliyyət tövsiyə etməlidir. Ümumi ifadələrdən çəkin. Bütün mətn Azərbaycan dilində olmalıdır.";
+        var fullPrompt = $"{systemPrompt}\n\n{prompt}";
+
         var payload = new
         {
-            systemInstruction = new
-            {
-                parts = new[]
-                {
-                    new
-                    {
-                        text = "Sən aqronomiya köməkçisisən. Verilən hesablanmış dəyərlərə (kq, ha, əmsallar) istinad edərək konkret tövsiyə hazırla. Yalnız summary və suggestions açarları olan tam düzgün JSON qaytar. summary bir cümlə olmalı və ümumi tələbatı xülasə etməlidir. suggestions 3 maddədən ibarət JSON massiv olmalıdır; hər maddə konkret rəqəmlərə istinad etməli və bu məhsul, torpaq növü və inkişaf mərhələsi üçün praktik fəaliyyət tövsiyə etməlidir. Ümumi ifadələrdən çəkin. Bütün mətn Azərbaycan dilində olmalıdır."
-                    }
-                }
-            },
             contents = new[]
             {
                 new
@@ -140,7 +136,7 @@ public class FertilizerAiInsightService : IFertilizerAiInsightService
                     {
                         new
                         {
-                            text = prompt
+                            text = fullPrompt
                         }
                     }
                 }
